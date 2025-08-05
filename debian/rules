@@ -1,0 +1,58 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+build: build-arch build-indep
+build-arch: build-stamp
+build-indep: build-stamp
+build-stamp:
+	dh_testdir
+	# Add here commands to compile the package.
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp
+	dh_clean
+
+DESTDIR = $(CURDIR)/debian/immutable-deepin-tools
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
+
+	# Add here commands to install the package into immutable-deepin-tools.
+	install -d $(DESTDIR)/usr/bin
+	install -m 755 immutable-deepin-tools $(DESTDIR)/usr/bin/
+	install -d $(DESTDIR)/usr/share/immutable-deepin-tools/icons
+	install -m 644 data/icons/*.png $(DESTDIR)/usr/share/immutable-deepin-tools/icons/
+	install -d $(DESTDIR)/usr/share/applications
+	install -m 644 data/immutable-deepin-tools.desktop $(DESTDIR)/usr/share/applications/
+	install -d $(DESTDIR)/usr/share/icons/hicolor/scalable/apps
+	install -m 644 data/immutable-deepin-tools.png $(DESTDIR)/usr/share/icons/hicolor/scalable/apps/
+
+# Build architecture-independent files here.
+binary-indep: build install
+# We have nothing to do by default.
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installdocs
+	dh_installchangelogs
+	dh_lintian
+	dh_compress
+#	dh_fixperms
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install 

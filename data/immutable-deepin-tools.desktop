@@ -1,0 +1,13 @@
+[Desktop Entry]
+Categories=System;
+Comment=Immutable Deepin Tools
+Comment[es]=Immutable Deepin Tools
+Comment[pt_BR]=Immutable Deepin Tools
+Exec=/usr/bin/webapps-creator-ui
+Icon=/usr/share/icons/hicolor/scalable/apps/webapps-creator-ui.png
+Name=Immutable Deepin Tools
+Name[es]=Immutable Deepin Tools
+Name[pt_BR]=Immutable Deepin Tools
+StartupWMClass=immutable-deepin-tools
+Type=Application
+X-Deepin-Vendor=user-custom

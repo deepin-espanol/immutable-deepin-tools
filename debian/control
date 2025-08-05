@@ -1,0 +1,21 @@
+Source: immutable-deepin-tools
+Section: utils
+Priority: optional
+Maintainer: krafairus <krafairuspc@gmail.com>
+Uploaders:
+  krafairus <krafairuspc@gmail.com>
+Build-Depends:
+  debhelper-compat (= 13)
+Standards-Version: 4.5.0
+Homepage: https://github.com/deepin-espanol/immutable-deepin-tools
+
+Package: immutable-deepin-tools
+Architecture: amd64
+Depends:
+  python3-pyqt5,
+  python3-pyqt5.qtwebengine,
+  ${misc:Depends},
+  python3,
+  ${shlibs:Depends},
+  zenity
+Description: Immutable Deepin Tools Unofficial.
