@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import importlib.util
 from subprocess import Popen, PIPE
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QTabWidget, QGroupBox, QPushButton, QLabel, QTextEdit,
@@ -15,6 +16,34 @@ from PySide6.QtCore import Qt, Signal, QObject, QPoint, QSize, QRect, QDir, QUrl
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = os.path.join(
     os.path.dirname(sys.executable), 'plugins'
 )
+
+class ConfigManager:
+    @staticmethod
+    def get_config_path():
+        home_dir = os.path.expanduser("~")
+        config_dir = os.path.join(home_dir, ".config", "immutable-deepin-tools")
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
+        return os.path.join(config_dir, "config.json")
+
+    @staticmethod
+    def load_config():
+        config_path = ConfigManager.get_config_path()
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading config: {e}")
+        return {"dark_mode": True}  # Default value
+
+    @staticmethod
+    def save_config(config):
+        try:
+            with open(ConfigManager.get_config_path(), 'w') as f:
+                json.dump(config, f)
+        except Exception as e:
+            print(f"Error saving config: {e}")
 
 class ThemeManager:
     @staticmethod
@@ -99,6 +128,10 @@ class ThemeManager:
             background-color: #0081FF;
             color: #FFFFFF;
         }
+        #nav_list::item:selected:hover {
+            background-color: #006BB3;  /* Un azul más oscuro para el hover en seleccionado */
+            color: #FFFFFF;
+        }
 
         /* Grupos (QGroupBox) */
         QGroupBox {
@@ -125,8 +158,8 @@ class ThemeManager:
 
         /* Botones generales */
         QPushButton {
-            background-color: #0081FF;
-            color: #FFFFFF;
+            background-color: #2ca7f8;
+            color: white;
             border: none;
             border-radius: 8px;
             padding: 10px 20px;
@@ -136,13 +169,13 @@ class ThemeManager:
             text-align: center;
         }
         QPushButton:hover {
-            background-color: #006BB3;
+            background-color: #1d8dd8;
         }
         QPushButton:pressed {
-            background-color: #004A77;
+            background-color: #0a70b9;
         }
         QPushButton:disabled {
-            background-color: #333333;
+            background-color: #CCCCCC;
             color: #777777;
         }
 
@@ -522,10 +555,14 @@ class ThemeManager:
             background-color: #2ca7f8;
             color: #FFFFFF;
         }
+        #nav_list::item:selected:hover {
+            background-color: #1d8dd8;  /* Un azul más oscuro para el hover en seleccionado */
+            color: #FFFFFF;
+        }
 
         /* Grupos */
         QGroupBox {
-            background-color: #FFFFFF;
+            background-color: #F0F0F0;
             border: 1px solid #E0E0E0;
             border-radius: 10px;
             margin-top: 25px;
@@ -659,7 +696,7 @@ class ThemeManager:
             margin-bottom: 2px;
         }
         QListWidget::item:hover {
-            background-color: #F5F5F5;
+            background-color: #A6A6A6;
         }
         QListWidget::item:selected {
             background-color: #2ca7f8;
@@ -968,20 +1005,23 @@ class RoundedWindow(QMainWindow):
         super().resizeEvent(event)
 
 class ConsoleOutputDialog(QDialog):
-    def __init__(self, parent=None, title_text="Salida de Comandos"):
+    def __init__(self, parent=None, title_text="Salida de Comandos", controller=None):
         super().__init__(parent)
         self.setWindowTitle(title_text)
         self.setFixedSize(600, 500)  
         
         self.requires_reboot = False
         self.current_command = ""
+        self.controller = controller  # Guardamos la referencia al controlador
         
         layout = QVBoxLayout(self)
         
         self.output_area = QTextEdit()
         self.output_area.setReadOnly(True)
         layout.addWidget(self.output_area, 1)
-        
+
+        self.clear_output()
+
         self.button_box = QWidget()
         self.button_layout = QHBoxLayout(self.button_box)
         self.button_layout.setContentsMargins(0, 0, 0, 0)
@@ -1006,16 +1046,20 @@ class ConsoleOutputDialog(QDialog):
         
         layout.addWidget(self.button_box)
 
+    def clear_output(self):
+        self.output_area.clear()
+
     def append_output(self, text):
+        if text == "":  # Señal especial para limpiar la consola
+            self.clear_output()
+            return
+            
+        # Resto del método original
         self.output_area.append(text)
         cursor = self.output_area.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self.output_area.setTextCursor(cursor)
         self.output_area.ensureCursorVisible()
-        
-        if not self.isVisible():
-            self.show()
-            self.raise_()
 
     def command_finished(self, exit_code):
         if exit_code == 0:
@@ -1039,7 +1083,7 @@ class ConsoleOutputDialog(QDialog):
 
     def reboot_system(self):
         self.append_output("\n🔄 Iniciando reinicio del sistema...")
-        QTimer.singleShot(1000, lambda: self.controller.execute_command("pkexec systemctl reboot", show_in_console=False))
+        QTimer.singleShot(1000, lambda: self.controller.execute_command("systemctl reboot", show_in_console=False))
         self.close()
 
 class ImmutableController(QObject):
@@ -1052,8 +1096,13 @@ class ImmutableController(QObject):
         self.process = None
         self.current_command = ""
 
-    def execute_command(self, command, show_in_console=True):
+    def execute_command(self, command, show_in_console=True, env=None):
         try:
+            if show_in_console:
+                self.commandOutput.emit("")  # Señal especial para limpiar
+                self.commandOutput.emit(f"$ {command}\n")
+                self.commandOutput.emit("="*80 + "\n")
+
             no_root_commands = [
                 "deepin-immutable-ctl --immutable-status",
                 "deepin-immutable-ctl snapshot list",
@@ -1066,18 +1115,18 @@ class ImmutableController(QObject):
                     needs_root = False
                     break
                     
-            # Comandos que SIEMPRE usan deepin-immutable-ctl admin exec
-            if "deepin-immutable-ctl admin exec" in command:
-                needs_root = True
-                command = command.replace("pkexec ", "")
-
             if needs_root and not command.startswith("pkexec"):
                 full_command = f"pkexec {command}"
             else:
                 full_command = command
 
             if not show_in_console:
-                process = Popen(full_command, shell=True, stdout=PIPE, stderr=PIPE)
+                # Usar el entorno proporcionado o el actual
+                process_env = os.environ.copy()
+                if env:
+                    process_env.update(env)
+                    
+                process = Popen(full_command, shell=True, stdout=PIPE, stderr=PIPE, env=process_env)
                 stdout, stderr = process.communicate()
                 output = stdout.decode('utf-8')
                 error = stderr.decode('utf-8')
@@ -1092,8 +1141,12 @@ class ImmutableController(QObject):
             self.process.readyReadStandardError.connect(self.handle_stderr)
             self.process.finished.connect(self.handle_finished)
             
-            if show_in_console:
-                self.commandStarted.emit(f"$ {full_command}\n")
+            # Configurar el entorno si se proporciona
+            if env:
+                process_env = self.process.processEnvironment()
+                for key, value in env.items():
+                    process_env.insert(key, value)
+                self.process.setProcessEnvironment(process_env)
             
             self.process.start("/bin/bash", ["-c", full_command])
             return ""
@@ -1125,22 +1178,48 @@ class MainWindow(RoundedWindow):
         self.controller = ImmutableController()
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
-        self.dark_mode = True
-        self.apply_theme(ThemeManager.dark_theme())
+        # Cargar configuración
+        config = ConfigManager.load_config()
+        self.dark_mode = config.get("dark_mode", True)
+        
+        # Aplicar tema según la configuración
+        if self.dark_mode:
+            self.apply_theme(ThemeManager.dark_theme())
+        else:
+            self.apply_theme(ThemeManager.light_theme())
 
-        self.console_dialog = ConsoleOutputDialog(self)
-        self.controller.commandStarted.connect(self.console_dialog.append_output)
+        self.console_dialog = ConsoleOutputDialog(self, title_text="Salida de Comandos", controller=self.controller)
+        self.controller.commandStarted.connect(lambda x: None)
         self.controller.commandOutput.connect(self.console_dialog.append_output)
         self.controller.commandFinished.connect(self.console_dialog.command_finished)
 
         self.create_ui()
-        self.refresh_snapshots()
         self.check_immutable_status()
 
         self.status_timer = QTimer(self)
         self.status_timer.setInterval(10000)
         self.status_timer.timeout.connect(self.check_immutable_status)
         self.status_timer.start()
+
+    def add_nav_item(self, text, icon_name):
+        item = QListWidgetItem(text)
+        
+        icon_path = os.path.join(self.current_dir, "resources", icon_name)
+        
+        if os.path.exists(icon_path):
+            item.setIcon(QIcon(icon_path))
+        else:
+            icon_mapping = {
+                "Estado": "dialog-information",
+                "Administración": "system-run",
+                "Snapshots": "document-save",
+                "Acerca de": "help-about"
+            }
+            default_icon = icon_mapping.get(text, "")
+            if default_icon:
+                item.setIcon(QIcon.fromTheme(default_icon))
+        
+        self.nav_list.addItem(item)
 
     def toggle_theme(self):
         self.dark_mode = not self.dark_mode
@@ -1149,9 +1228,11 @@ class MainWindow(RoundedWindow):
         else:
             self.apply_theme(ThemeManager.light_theme())
         
+        # Guardar configuración
+        ConfigManager.save_config({"dark_mode": self.dark_mode})
+        
         if hasattr(self, 'title_bar') and hasattr(self.title_bar, 'update_theme_icon'):
             self.title_bar.update_theme_icon()
-
     def apply_theme(self, stylesheet):
         self.setStyleSheet(stylesheet)
         QApplication.instance().setStyleSheet(stylesheet)
@@ -1219,42 +1300,6 @@ class MainWindow(RoundedWindow):
     def run_command(self, command, show_in_console=True):
         self.controller.execute_command(command, show_in_console=show_in_console)
 
-    def refresh_snapshots(self):
-        self.snapshot_list.clear()
-        output = self.controller.execute_command("deepin-immutable-ctl snapshot list", show_in_console=False)
-
-        lines = output.split('\n')
-        if len(lines) > 1:
-            for line in lines[1:]:
-                if line.strip():
-                    parts = line.split()
-                    if len(parts) >= 4:
-                        snapshot_id = parts[0]
-                        name = parts[1]
-                        time = ' '.join(parts[2:4]) if len(parts) >= 4 else ''
-                        desc = ' '.join(parts[4:]) if len(parts) > 4 else ''
-
-                        item_text = f"{name} ({snapshot_id})\n{time} - {desc}"
-                        self.snapshot_list.addItem(item_text)
-        self.enable_snapshot_buttons()
-
-    def get_selected_snapshot_id(self):
-        current_item = self.snapshot_list.currentItem()
-        if current_item:
-            text = current_item.text()
-            start = text.find("(") + 1
-            end = text.find(")")
-            if start > 0 and end > start:
-                return text[start:end]
-        return None
-
-    def enable_snapshot_buttons(self):
-        selected = self.snapshot_list.currentItem() is not None
-        self.btn_delete.setEnabled(selected)
-        self.btn_show.setEnabled(selected)
-        self.btn_modify.setEnabled(selected)
-        self.btn_revert.setEnabled(selected)
-
     def confirm_action(self, title, message, command, show_console=True, requires_reboot=False):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(title)
@@ -1284,182 +1329,6 @@ class MainWindow(RoundedWindow):
             elif "immutable-writable" in command:
                 self.check_immutable_status()
 
-    def confirm_deploy(self):
-        self.confirm_action(
-            "Confirmar Despliegue",
-            "¿Está seguro que desea desplegar los cambios al sistema? Esto requiere un reinicio.",
-            "pkexec deepin-immutable-ctl admin deploy",
-            show_console=True
-        )
-
-    def confirm_finalize(self):
-        self.confirm_action(
-            "Confirmar Finalización",
-            "¿Está seguro que desea finalizar el despliegue actual?\nEsto eliminará las modificaciones sobre el sistema base y requiere un reinicio.",
-            "pkexec deepin-immutable-ctl admin deploy --finalize",
-            show_console=True
-        )
-
-    def confirm_rollback(self):
-        self.confirm_action(
-            "Confirmar Reversión",
-            "¿Está seguro que desea revertir al sistema anterior? Esto requiere un reinicio.",
-            "pkexec deepin-immutable-ctl admin rollback",
-            show_console=True
-        )
-
-    def confirm_delete_snapshot(self):
-        snapshot_id = self.get_selected_snapshot_id()
-        if snapshot_id:
-            self.confirm_action(
-                "Confirmar Eliminación",
-                f"¿Está seguro que desea eliminar el snapshot {snapshot_id}?",
-                f'pkexec deepin-immutable-ctl snapshot delete "{snapshot_id}"',
-                show_console=True
-            )
-
-    def confirm_revert_snapshot(self):
-        snapshot_id = self.get_selected_snapshot_id()
-        if snapshot_id:
-            self.confirm_action(
-                "Confirmar Reversión de Snapshot",
-                f"¡ADVERTENCIA!\n\nAl revertir al snapshot '{snapshot_id}', se perderán todos los cambios realizados en el sistema después de la creación de ese snapshot.\n\nEsta operación NO se puede deshacer y requerirá un reinicio inmediato del equipo para aplicar los cambios.\n\n¿Desea continuar?",
-                f'pkexec deepin-immutable-ctl snapshot rollback "{snapshot_id}"',
-                show_console=True
-            )
-
-    def show_create_snapshot_dialog(self):
-        text, ok = QInputDialog.getText(self, "Crear Snapshot",
-                                     "Introduce un nombre para el snapshot (opcional):",
-                                     QLineEdit.Normal, "")
-        if ok:
-            description, ok_desc = QInputDialog.getText(self, "Crear Snapshot",
-                                                     "Introduce una descripción (opcional):",
-                                                     QLineEdit.Normal, "")
-            if ok_desc:
-                command = "pkexec deepin-immutable-ctl snapshot create"
-                if text:
-                    command += f' --name="{text}"'
-                if description:
-                    command += f' --description="{description}"'
-                self.confirm_action("Confirmar Creación de Snapshot",
-                                    f"¿Está seguro que desea crear un snapshot con nombre '{text}' y descripción '{description}'?",
-                                    command,
-                                    show_console=True)
-
-    def show_modify_snapshot_dialog(self):
-        snapshot_id = self.get_selected_snapshot_id()
-        if not snapshot_id:
-            QMessageBox.warning(self, "Advertencia", "Por favor, selecciona un snapshot para modificar.")
-            return
-
-        name, ok_name = QInputDialog.getText(self, "Modificar Snapshot",
-                                           f"Nuevo nombre para el snapshot {snapshot_id} (dejar en blanco para no cambiar):",
-                                           QLineEdit.Normal, "")
-        if ok_name:
-            description, ok_desc = QInputDialog.getText(self, "Modificar Snapshot",
-                                                       f"Nueva descripción para el snapshot {snapshot_id} (dejar en blanco para no cambiar):",
-                                                       QLineEdit.Normal, "")
-            if ok_desc:
-                command_parts = [f'pkexec deepin-immutable-ctl snapshot modify "{snapshot_id}"']
-                if name:
-                    command_parts.append(f'--set-name="{name}"')
-                if description:
-                    command_parts.append(f'--set-description="{description}"')
-
-                if len(command_parts) > 1:
-                    self.confirm_action("Confirmar Modificación de Snapshot",
-                                        f"¿Está seguro que desea modificar el snapshot {snapshot_id}?",
-                                        " ".join(command_parts),
-                                        show_console=True)
-                else:
-                    QMessageBox.information(self, "Información", "No se especificaron cambios para el snapshot.")
-
-    def show_exec_dialog(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Ejecutar Comando (admin)")
-        dialog.setFixedSize(600, 450)
-
-        layout = QVBoxLayout(dialog)
-
-        form = QFormLayout()
-        cmd_input = QLineEdit()
-        cmd_input.setPlaceholderText("ej: apt update && apt upgrade -y")
-        form.addRow("Comando:", cmd_input)
-        layout.addLayout(form)
-
-        common_commands_group = QGroupBox("Comandos comunes")
-        common_commands_layout = QGridLayout(common_commands_group)
-        
-        common_commands = [
-            ("apt update", "apt update"),
-            ("apt upgrade", "apt upgrade -y"),
-            ("apt install", "apt install "),
-            ("apt remove", "apt remove "),
-            ("apt autoremove", "apt autoremove -y"),
-            ("apt clean", "apt clean")
-        ]
-        
-        row, col = 0, 0
-        for text, command in common_commands:
-            btn = QPushButton(text)
-            btn.setObjectName("common_command_button")
-            btn.clicked.connect(lambda _, cmd=command: cmd_input.setText(cmd))
-            common_commands_layout.addWidget(btn, row, col)
-            col += 1
-            if col > 2:  # 3 columns
-                col = 0
-                row += 1
-        
-        layout.addWidget(common_commands_group)
-
-        buttons = QHBoxLayout()
-        btn_ok = QPushButton("Ejecutar")
-        btn_ok.clicked.connect(lambda: self.confirm_action(
-            "Confirmar Ejecución",
-            f"¿Está seguro que desea ejecutar el comando:\n\n{cmd_input.text()}?",
-            f"deepin-immutable-ctl admin exec -- {cmd_input.text()}",
-            show_console=True
-        ))
-        btn_ok.clicked.connect(dialog.accept)
-        btn_cancel = QPushButton("Cancelar")
-        btn_cancel.clicked.connect(dialog.reject)
-        buttons.addWidget(btn_ok)
-        buttons.addWidget(btn_cancel)
-        layout.addLayout(buttons)
-
-        dialog.exec()
-
-    def show_file_op_dialog(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Operación de Archivos")
-        dialog.setFixedSize(600, 450)
-
-        layout = QVBoxLayout(dialog)
-
-        form = QFormLayout()
-        op_input = QLineEdit()
-        op_input.setPlaceholderText("ej: setxattr /ruta/al/archivo user.key=value")
-        form.addRow("Operación:", op_input)
-        layout.addLayout(form)
-
-        buttons = QHBoxLayout()
-        btn_ok = QPushButton("Ejecutar")
-        btn_ok.clicked.connect(lambda: self.confirm_action(
-            "Confirmar Operación de Archivos",
-            f"¿Está seguro que desea ejecutar la operación:\n\n{op_input.text()}?\n\nEsta acción requiere privilegios de root.",
-            f"pkexec deepin-immutable-ctl admin file-op {op_input.text()}",
-            show_console=True
-        ))
-        btn_ok.clicked.connect(dialog.accept)
-        btn_cancel = QPushButton("Cancelar")
-        btn_cancel.clicked.connect(dialog.reject)
-        buttons.addWidget(btn_ok)
-        buttons.addWidget(btn_cancel)
-        layout.addLayout(buttons)
-
-        dialog.exec()
-
     def create_ui(self):
         main_content_layout = QHBoxLayout(self.content_widget)
         main_content_layout.setContentsMargins(0, 0, 0, 0)
@@ -1480,8 +1349,8 @@ class MainWindow(RoundedWindow):
         main_content_layout.addWidget(self.content_stack, 1)
 
         self.create_status_page()
-        self.create_admin_page()
-        self.create_snapshot_page()
+        self.load_admin_tab()
+        self.load_snapshots_tab()
         self.create_about_page()
 
         self.nav_list.currentRowChanged.connect(self.content_stack.setCurrentIndex)
@@ -1491,7 +1360,6 @@ class MainWindow(RoundedWindow):
         
         icon_path = os.path.join(self.current_dir, "resources", icon_name)
         
-        # Establecer el icono si existe, o usar uno por defecto
         if os.path.exists(icon_path):
             item.setIcon(QIcon(icon_path))
         else:
@@ -1512,29 +1380,24 @@ class MainWindow(RoundedWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # Contenedor para el icono y título
         header_layout = QHBoxLayout()
         header_layout.setSpacing(15)
         
-        # Obtener el icono de la aplicación
         icon_path = os.path.join(self.current_dir, "resources", "icon.png")
         if os.path.exists(icon_path):
             icon_label = QLabel()
             icon_label.setPixmap(QIcon(icon_path).pixmap(64, 64))
             header_layout.addWidget(icon_label)
         else:
-            # Si no existe el icono, usar uno por defecto
             icon_label = QLabel()
             icon_label.setPixmap(QIcon.fromTheme("system-run").pixmap(64, 64))
             header_layout.addWidget(icon_label)
         
-        # Contenedor vertical para el título y subtítulo
         title_container = QWidget()
         title_layout = QVBoxLayout(title_container)
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(5)
         
-        # Título principal
         title = QLabel("Immutable Deepin Tools")
         title.setStyleSheet("""
             QLabel {
@@ -1545,8 +1408,7 @@ class MainWindow(RoundedWindow):
         title.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         title_layout.addWidget(title, 0, Qt.AlignVCenter)
         
-        # Subtítulo con color diferente
-        subtitle = QLabel("Herramienta no oficial del equipo de deepin, desarrollado por la comunidad.")
+        subtitle = QLabel("Desarrollado por la comunidad de Deepin en Español.")
         subtitle.setStyleSheet("""
             QLabel {
                 font-size: 17px;
@@ -1557,7 +1419,6 @@ class MainWindow(RoundedWindow):
         subtitle.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         title_layout.addWidget(subtitle, 0, Qt.AlignVCenter)
         
-        # Añadir espacio flexible para centrar verticalmente
         title_layout.addStretch()
         
         header_layout.addWidget(title_container)
@@ -1565,31 +1426,49 @@ class MainWindow(RoundedWindow):
         
         layout.addLayout(header_layout)
         
-        version = QLabel("Versión: 1.0.1")
+        version = QLabel("Versión: 1.0.3")
         version.setAlignment(Qt.AlignCenter)
         layout.addWidget(version)
         
         layout.addWidget(self.create_separator())
         
-        maintainers = QLabel("""
-            <b>Mantenedores:</b><br>
-            krafairus - <a href="https://xn--deepinenespaol-1nb.org/participant/krafairus">https://xn--deepinenespaol-1nb.org/participant/krafairus</a>
+        # Definir el estilo verde para los enlaces
+        link_style = "style='color:#2ECC71; text-decoration:none;'"
+        hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
+                    "onmouseout=\"this.style.color='#2ECC71'; this.style.textDecoration='none'\""
+
+        developer = QLabel(f"""
+            <b>Desarrollador:</b><br>
+            krafairus - <a href='https://xn--deepinenespaol-1nb.org/participant/krafairus' {link_style} {hover_style}>deepines.com/participant/krafairus</a>
         """)
-        maintainers.setOpenExternalLinks(True)
-        maintainers.setWordWrap(True)
-        layout.addWidget(maintainers)
+        developer.setOpenExternalLinks(True)
+        developer.setWordWrap(True)
+        layout.addWidget(developer)
         
-        community = QLabel("""
+        # Definir el estilo verde para los enlaces
+        link_style = "style='color:#2ECC71; text-decoration:none;'"
+        hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
+                    "onmouseout=\"this.style.color='#2ECC71'; this.style.textDecoration='none'\""
+
+        beta_testers = QLabel(f"""
+            <b>Beta Testers:</b><br>
+            Guysho2112 - <a href='https://xn--deepinenespaol-1nb.org/participant/Guysho2112/' {link_style} {hover_style}>deepines.com/participant/Guysho2112/</a>
+        """)
+        beta_testers.setOpenExternalLinks(True)
+        beta_testers.setWordWrap(True)
+        layout.addWidget(beta_testers)
+
+        community = QLabel(f"""
             <b>Comunidad deepin en español:</b><br>
-            <a href="https://xn--deepinenespaol-1nb.org">https://xn--deepinenespaol-1nb.org</a>
+            <a href='https://xn--deepinenespaol-1nb.org' {link_style} {hover_style}>www.deepines.com</a>
         """)
         community.setOpenExternalLinks(True)
         community.setWordWrap(True)
         layout.addWidget(community)
         
-        repo = QLabel("""
+        repo = QLabel(f"""
             <b>Repositorio:</b><br>
-            <a href="https://github.com/krafairus/immutable-deepin-tools">https://github.com/krafairus/immutable-deepin-tools</a>
+            <a href='https://github.com/krafairus/immutable-deepin-tools' {link_style} {hover_style}>https://github.com/krafairus/immutable-deepin-tools</a>
         """)
         repo.setOpenExternalLinks(True)
         repo.setWordWrap(True)
@@ -1654,174 +1533,50 @@ class MainWindow(RoundedWindow):
 
         self.content_stack.addWidget(page)
 
-    def create_admin_page(self):
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
+    def load_admin_tab(self):
+        """Carga dinámicamente la pestaña de administración desde el módulo externo"""
+        try:
+            admin_path = os.path.join(self.current_dir, "resources", "admin.py")
+            
+            if os.path.exists(admin_path):
+                spec = importlib.util.spec_from_file_location("admin", admin_path)
+                admin_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(admin_module)
+                
+                admin_tab = admin_module.AdminTab(self.controller, self)
+                self.content_stack.addWidget(admin_tab)
+            else:
+                print(f"Advertencia: No se encontró el módulo admin.py en {admin_path}")
+                placeholder = QLabel("Módulo de administración no encontrado")
+                placeholder.setAlignment(Qt.AlignCenter)
+                self.content_stack.addWidget(placeholder)
+        except Exception as e:
+            print(f"Error al cargar el módulo de administración: {str(e)}")
+            error_widget = QLabel(f"Error al cargar la administración:\n{str(e)}")
+            error_widget.setAlignment(Qt.AlignCenter)
+            self.content_stack.addWidget(error_widget)
 
-        admin_group_actions = QGroupBox("Acciones de Administración")
-        admin_group_layout = QVBoxLayout(admin_group_actions)
-
-        btn_deploy = QPushButton("Desplegar Cambios")
-        btn_deploy.clicked.connect(self.confirm_deploy)
-        admin_group_layout.addWidget(btn_deploy)
-
-        btn_finalize = QPushButton("Finalizar Despliegue")
-        btn_finalize.clicked.connect(self.confirm_finalize)
-        admin_group_layout.addWidget(btn_finalize)
-
-        btn_rollback = QPushButton("Revertir al Anterior")
-        btn_rollback.clicked.connect(self.confirm_rollback)
-        admin_group_layout.addWidget(btn_rollback)
-
-        admin_group_layout.addWidget(self.create_separator())
-
-        btn_exec_command = QPushButton("Ejecutar Comando (admin)")
-        btn_exec_command.clicked.connect(self.show_exec_dialog)
-        admin_group_layout.addWidget(btn_exec_command)
-
-        btn_file_op = QPushButton("Operación de Archivos (admin)")
-        btn_file_op.clicked.connect(self.show_file_op_dialog)
-        admin_group_layout.addWidget(btn_file_op)
-
-        layout.addWidget(admin_group_actions)
-        layout.addStretch(1)
-
-        self.content_stack.addWidget(page)
-
-    def create_snapshot_page(self):
-        page = QWidget()
-        snapshot_main_layout = QHBoxLayout(page)
-        snapshot_main_layout.setContentsMargins(20, 20, 20, 20)
-        snapshot_main_layout.setSpacing(15)
-
-        snapshot_list_container = QGroupBox("Gestión de Snapshots")
-        snapshot_list_layout = QVBoxLayout(snapshot_list_container)
-
-        self.snapshot_list = QListWidget()
-        self.snapshot_list.itemSelectionChanged.connect(self.enable_snapshot_buttons)
-        snapshot_list_layout.addWidget(self.snapshot_list)
-
-        snapshot_action_buttons_layout = QHBoxLayout()
-        snapshot_action_buttons_layout.setSpacing(10)
-
-        btn_create = QPushButton("Crear")
-        btn_create.setObjectName("btn_create_snapshot")
-        btn_create.clicked.connect(self.show_create_snapshot_dialog)
-        snapshot_action_buttons_layout.addWidget(btn_create)
-
-        self.btn_delete = QPushButton("Eliminar")
-        self.btn_delete.setObjectName("btn_delete_snapshot")
-        self.btn_delete.clicked.connect(self.confirm_delete_snapshot)
-        self.btn_delete.setEnabled(False)
-        snapshot_action_buttons_layout.addWidget(self.btn_delete)
-
-        self.btn_show = QPushButton("")
-        self.btn_show.setObjectName("btn_show_snapshot")
-        show_icon_path = os.path.join(self.current_dir, "resources", "info.png")
-        if os.path.exists(show_icon_path):
-            self.btn_show.setIcon(QIcon(show_icon_path))
-        else:
-            self.btn_show.setText("Info")
-        self.btn_show.setToolTip("Mostrar Información del Snapshot")
-        self.btn_show.clicked.connect(lambda: self.run_command(f'deepin-immutable-ctl snapshot show "{self.get_selected_snapshot_id()}"', show_in_console=True) if self.get_selected_snapshot_id() else None)
-        self.btn_show.setEnabled(False)
-        snapshot_action_buttons_layout.addWidget(self.btn_show)
-
-        self.btn_modify = QPushButton("")
-        self.btn_modify.setObjectName("btn_modify_snapshot")
-        modify_icon_path = os.path.join(self.current_dir, "resources", "edit.png")
-        if os.path.exists(modify_icon_path):
-            self.btn_modify.setIcon(QIcon(modify_icon_path))
-        else:
-            self.btn_modify.setText("Mod.")
-        self.btn_modify.setToolTip("Modificar Snapshot")
-        self.btn_modify.clicked.connect(self.show_modify_snapshot_dialog)
-        self.btn_modify.setEnabled(False)
-        snapshot_action_buttons_layout.addWidget(self.btn_modify)
-
-        btn_refresh = QPushButton()
-        btn_refresh.setObjectName("btn_refresh_list")
-        btn_refresh.setFixedSize(32, 32)  
-        btn_refresh.setIconSize(QSize(24, 24))  
-        
-        refresh_icon_path = os.path.join(self.current_dir, "resources", "refresh.png")
-        if os.path.exists(refresh_icon_path):
-            btn_refresh.setIcon(QIcon(refresh_icon_path))
-        else:
-            btn_refresh.setIcon(QIcon.fromTheme("view-refresh"))
-        
-        btn_refresh.setToolTip("Refrescar Lista de Snapshots")
-        btn_refresh.setStyleSheet("""
-            QPushButton {
-                border: none;
-                background: transparent;
-            }
-            QPushButton:hover {
-                background-color: rgba(0, 0, 0, 0.1);
-                border-radius: 4px;
-            }
-            QPushButton:pressed {
-                background-color: rgba(0, 0, 0, 0.2);
-            }
-        """)
-        btn_refresh.clicked.connect(self.refresh_snapshots)
-        snapshot_action_buttons_layout.addWidget(btn_refresh)
-
-        snapshot_list_layout.addLayout(snapshot_action_buttons_layout)
-        snapshot_main_layout.addWidget(snapshot_list_container, 2)
-
-        revert_group = QGroupBox("Revertir Sistema a Snapshot")
-        revert_layout = QVBoxLayout(revert_group)
-        revert_layout.setSpacing(10)
-
-        self.btn_revert = QPushButton("Revertir Ahora")
-        self.btn_revert.setStyleSheet("""
-            QPushButton {
-                background-color: #E74C3C;
-                color: #FFFFFF;
-                border: none;
-                border-radius: 8px;
-                padding: 15px 25px;
-                min-width: 150px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #C0392B;
-            }
-            QPushButton:pressed {
-                background-color: #A93226;
-            }
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #AAAAAA;
-            }
-        """)
-        self.btn_revert.clicked.connect(self.confirm_revert_snapshot)
-        self.btn_revert.setEnabled(False)
-        revert_layout.addWidget(self.btn_revert, alignment=Qt.AlignCenter)
-
-        revert_explanation = QLabel(
-            "Revertir el sistema a un snapshot restaurará el estado del sistema al momento en que se creó ese snapshot. "
-            "Esto eliminará permanentemente todos los cambios realizados posteriormente. "
-            "Esta operación es irreversible y requerirá un reinicio inmediato del equipo."
-        )
-        revert_explanation.setWordWrap(True)
-        revert_explanation.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        revert_layout.addWidget(revert_explanation)
-
-        info_link = QLabel('<a href="https://bbs.deepin.org/en/post/289441">Más información sobre el sistema inmutable</a>')
-        info_link.setOpenExternalLinks(True)
-        info_link.setAlignment(Qt.AlignBottom | Qt.AlignLeft)
-        revert_layout.addWidget(info_link)
-
-        revert_group.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        revert_group.setMinimumWidth(280)
-        snapshot_main_layout.addWidget(revert_group, 1)
-
-        self.content_stack.addWidget(page)
+    def load_snapshots_tab(self):
+        try:
+            snapshots_path = os.path.join(self.current_dir, "resources", "snapshots.py")
+            
+            if os.path.exists(snapshots_path):
+                spec = importlib.util.spec_from_file_location("snapshots", snapshots_path)
+                snapshots_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(snapshots_module)
+                
+                snapshots_tab = snapshots_module.SnapshotsTab(self.controller, self)
+                self.content_stack.addWidget(snapshots_tab)  # Corregido: usa snapshots_tab en lugar de snapshots_path
+            else:
+                print(f"Advertencia: No se encontró el módulo snapshots.py en {snapshots_path}")
+                placeholder = QLabel("Módulo de Snapshots no encontrado")
+                placeholder.setAlignment(Qt.AlignCenter)
+                self.content_stack.addWidget(placeholder)
+        except Exception as e:
+            print(f"Error al cargar el módulo de Snapshots: {str(e)}")
+            error_widget = QLabel(f"Error al cargar Snapshots:\n{str(e)}")
+            error_widget.setAlignment(Qt.AlignCenter)
+            self.content_stack.addWidget(error_widget)
 
     def create_separator(self):
         separator = QFrame()
