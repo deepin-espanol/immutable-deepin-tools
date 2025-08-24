@@ -129,7 +129,7 @@ class ThemeManager:
             color: #FFFFFF;
         }
         #nav_list::item:selected:hover {
-            background-color: #006BB3;  /* Un azul más oscuro para el hover en seleccionado */
+            background-color: #006BB3; 
             color: #FFFFFF;
         }
 
@@ -1050,11 +1050,10 @@ class ConsoleOutputDialog(QDialog):
         self.output_area.clear()
 
     def append_output(self, text):
-        if text == "":  # Señal especial para limpiar la consola
+        if text == "":  
             self.clear_output()
             return
             
-        # Resto del método original
         self.output_area.append(text)
         cursor = self.output_area.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -1099,7 +1098,7 @@ class ImmutableController(QObject):
     def execute_command(self, command, show_in_console=True, env=None):
         try:
             if show_in_console:
-                self.commandOutput.emit("")  # Señal especial para limpiar
+                self.commandOutput.emit("") 
                 self.commandOutput.emit(f"$ {command}\n")
                 self.commandOutput.emit("="*80 + "\n")
 
@@ -1121,7 +1120,6 @@ class ImmutableController(QObject):
                 full_command = command
 
             if not show_in_console:
-                # Usar el entorno proporcionado o el actual
                 process_env = os.environ.copy()
                 if env:
                     process_env.update(env)
@@ -1141,7 +1139,6 @@ class ImmutableController(QObject):
             self.process.readyReadStandardError.connect(self.handle_stderr)
             self.process.finished.connect(self.handle_finished)
             
-            # Configurar el entorno si se proporciona
             if env:
                 process_env = self.process.processEnvironment()
                 for key, value in env.items():
@@ -1178,11 +1175,9 @@ class MainWindow(RoundedWindow):
         self.controller = ImmutableController()
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # Cargar configuración
         config = ConfigManager.load_config()
         self.dark_mode = config.get("dark_mode", True)
         
-        # Aplicar tema según la configuración
         if self.dark_mode:
             self.apply_theme(ThemeManager.dark_theme())
         else:
@@ -1228,7 +1223,6 @@ class MainWindow(RoundedWindow):
         else:
             self.apply_theme(ThemeManager.light_theme())
         
-        # Guardar configuración
         ConfigManager.save_config({"dark_mode": self.dark_mode})
         
         if hasattr(self, 'title_bar') and hasattr(self.title_bar, 'update_theme_icon'):
@@ -1432,7 +1426,6 @@ class MainWindow(RoundedWindow):
         
         layout.addWidget(self.create_separator())
         
-        # Definir el estilo verde para los enlaces
         link_style = "style='color:#2ECC71; text-decoration:none;'"
         hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
                     "onmouseout=\"this.style.color='#2ECC71'; this.style.textDecoration='none'\""
@@ -1445,7 +1438,6 @@ class MainWindow(RoundedWindow):
         developer.setWordWrap(True)
         layout.addWidget(developer)
         
-        # Definir el estilo verde para los enlaces
         link_style = "style='color:#2ECC71; text-decoration:none;'"
         hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
                     "onmouseout=\"this.style.color='#2ECC71'; this.style.textDecoration='none'\""
@@ -1566,7 +1558,7 @@ class MainWindow(RoundedWindow):
                 spec.loader.exec_module(snapshots_module)
                 
                 snapshots_tab = snapshots_module.SnapshotsTab(self.controller, self)
-                self.content_stack.addWidget(snapshots_tab)  # Corregido: usa snapshots_tab en lugar de snapshots_path
+                self.content_stack.addWidget(snapshots_tab)  
             else:
                 print(f"Advertencia: No se encontró el módulo snapshots.py en {snapshots_path}")
                 placeholder = QLabel("Módulo de Snapshots no encontrado")
