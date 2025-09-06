@@ -3,15 +3,25 @@ Unofficial application for manipulating the immutability of Deepin Linux 25.
 
 <img width="1053" height="600" alt="imagen" src="https://github.com/user-attachments/assets/9cb90a0e-1cc3-474a-a6b5-1a16702ac6e9" />
 
-**List of options:**
+List of options:
 Manipulate files using parameters.
 Run commands without disabling immutability.
 Manage system backups.
 Deploy, revert, and apply changes to the Ostree system.
 
-**Compile binary:**
+Compile binary:
 pyinstaller --onefile --windowed --add-data "resources:resources" --hidden-import "PySide6.QtCore" --hidden-import "PySide6.QtGui" --hidden-import "PySide6.QtWidgets" main.py
 
-Warning: Product quality is not guaranteed. If you encounter any problems, please report them.
+Compile Deb package:
+1. Create release file.
+dch --create -D stable --package "immutable-deepin-tools" --newversion=1.x.x "New release."
 
-**Under the MIT license.**
+2. Compilation Dependencies:
+sudo apt build-dep .
+
+3. Compile Package:
+dpkg-buildpackage -Zxz -rfakeroot -b
+
+Warning: The quality of this product is not guaranteed. If you encounter any problems, please report them.
+
+Using the MIT license.
