@@ -9,6 +9,12 @@ Run commands without disabling immutability.
 Manage system backups.
 Deploy, revert, and apply changes to the Ostree system.
 
+Available languages:
+ -   Chinese
+ -   Portuguese
+ -   Spanish
+ -   English
+
 Compile binary:
 pyinstaller --onefile --windowed --add-data "resources:resources" --hidden-import "PySide6.QtCore" --hidden-import "PySide6.QtGui" --hidden-import "PySide6.QtWidgets" main.py
 
