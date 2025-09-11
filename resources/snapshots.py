@@ -2,9 +2,10 @@ import os
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QGroupBox, 
                               QPushButton, QListWidget, QListWidgetItem, 
                               QInputDialog, QLineEdit, QLabel, QFrame,
-                              QMessageBox)
+                              QMessageBox, QDialog, QDialogButtonBox)
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import QCoreApplication, QTranslator
 
 class SnapshotsTab(QWidget):
     def __init__(self, controller, parent=None):
@@ -16,13 +17,17 @@ class SnapshotsTab(QWidget):
         self.connect_signals()
         self.refresh_snapshots()
 
+    def tr(self, text):
+        """Método wrapper para traducciones"""
+        return QCoreApplication.translate("SnapshotsTab", text)
+
     def setup_ui(self):
         snapshot_main_layout = QHBoxLayout(self)
         snapshot_main_layout.setContentsMargins(20, 20, 20, 20)
         snapshot_main_layout.setSpacing(15)
 
         # Lista de snapshots
-        snapshot_list_container = QGroupBox("Gestión de Snapshots")
+        snapshot_list_container = QGroupBox(self.tr("Gestión de Snapshots"))
         snapshot_list_layout = QVBoxLayout(snapshot_list_container)
 
         self.snapshot_list = QListWidget()
@@ -32,11 +37,11 @@ class SnapshotsTab(QWidget):
         snapshot_action_buttons_layout = QHBoxLayout()
         snapshot_action_buttons_layout.setSpacing(10)
 
-        self.btn_create = QPushButton("Crear")
+        self.btn_create = QPushButton(self.tr("Crear"))
         self.btn_create.setObjectName("btn_create_snapshot")
         snapshot_action_buttons_layout.addWidget(self.btn_create)
 
-        self.btn_delete = QPushButton("Eliminar")
+        self.btn_delete = QPushButton(self.tr("Eliminar"))
         self.btn_delete.setObjectName("btn_delete_snapshot")
         self.btn_delete.setEnabled(False)
         snapshot_action_buttons_layout.addWidget(self.btn_delete)
@@ -44,7 +49,7 @@ class SnapshotsTab(QWidget):
         # Configurar botón mostrar con icono (usando QPixmap)
         self.btn_show = QPushButton()
         self.btn_show.setObjectName("btn_show_snapshot")
-        self.btn_show.setToolTip("Mostrar Información del Snapshot")
+        self.btn_show.setToolTip(self.tr("Mostrar Información del Snapshot"))
         self.btn_show.setEnabled(False)
         
         btn_show_layout = QHBoxLayout(self.btn_show)
@@ -65,7 +70,7 @@ class SnapshotsTab(QWidget):
         # Configurar botón modificar con icono (usando QPixmap)
         self.btn_modify = QPushButton()
         self.btn_modify.setObjectName("btn_modify_snapshot")
-        self.btn_modify.setToolTip("Modificar Snapshot")
+        self.btn_modify.setToolTip(self.tr("Modificar Snapshot"))
         self.btn_modify.setEnabled(False)
         
         btn_modify_layout = QHBoxLayout(self.btn_modify)
@@ -85,7 +90,7 @@ class SnapshotsTab(QWidget):
         # Configurar botón refrescar con icono (usando QPixmap)
         self.btn_refresh = QPushButton()
         self.btn_refresh.setObjectName("btn_refresh_list")
-        self.btn_refresh.setToolTip("Refrescar Lista de Snapshots")
+        self.btn_refresh.setToolTip(self.tr("Refrescar Lista de Snapshots"))
         
         btn_refresh_layout = QHBoxLayout(self.btn_refresh)
         btn_refresh_layout.setContentsMargins(5, 5, 5, 5)
@@ -101,6 +106,7 @@ class SnapshotsTab(QWidget):
         
         snapshot_action_buttons_layout.addWidget(self.btn_refresh)
 
+        # Estilos CSS (sin cambios ya que no contienen texto)
         self.btn_delete.setStyleSheet("""
             QPushButton:hover {
                 background-color: #1d8dd8;
@@ -182,22 +188,23 @@ class SnapshotsTab(QWidget):
         snapshot_main_layout.addWidget(snapshot_list_container, 2)
 
         # Panel de revertir
-        revert_group = QGroupBox("Revertir Sistema a Snapshot")
+        revert_group = QGroupBox(self.tr("Revertir Sistema a Snapshot"))
         revert_layout = QVBoxLayout(revert_group)
 
-        self.btn_revert = QPushButton("Revertir Ahora")
+        self.btn_revert = QPushButton(self.tr("Revertir Ahora"))
         self.btn_revert.setEnabled(False)
         revert_layout.addWidget(self.btn_revert, alignment=Qt.AlignCenter)
 
-        revert_explanation = QLabel(
+        revert_explanation = QLabel(self.tr(
             "Revertir el sistema a un snapshot restaurará el estado del sistema al momento en que se creó ese snapshot. "
             "Esto eliminará permanentemente todos los cambios realizados posteriormente. "
             "Esta operación es irreversible y requerirá un reinicio inmediato del equipo."
-        )
+        ))
         revert_explanation.setWordWrap(True)
         revert_layout.addWidget(revert_explanation)
 
-        info_link = QLabel('<a href="https://xn--deepinenespaol-1nb.org/noticias/solido-como-acceder-a-root-en-v25/">Más información</a>')
+        info_link_text = self.tr('<a href="https://xn--deepinenespaol-1nb.org/noticias/solido-como-acceder-a-root-en-v25/">Más información</a>')
+        info_link = QLabel(info_link_text)
         info_link.setOpenExternalLinks(True)
         revert_layout.addWidget(info_link)
 
@@ -256,60 +263,118 @@ class SnapshotsTab(QWidget):
         self.parent.confirm_action(title, message, command, show_console, requires_reboot)
 
     def show_create_snapshot_dialog(self):
-        text, ok = QInputDialog.getText(
-            self, "Crear Snapshot",
-            "Introduce un nombre para el snapshot (opcional):",
-            QLineEdit.Normal, ""
-        )
-        if ok:
-            description, ok_desc = QInputDialog.getText(
-                self, "Crear Snapshot",
-                "Introduce una descripción (opcional):",
-                QLineEdit.Normal, ""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("Crear Snapshot"))
+        dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Campo para el nombre
+        name_label = QLabel(self.tr("Introduce un nombre para el snapshot (opcional):"))
+        layout.addWidget(name_label)
+        
+        name_edit = QLineEdit()
+        layout.addWidget(name_edit)
+        
+        # Campo para la descripción
+        desc_label = QLabel(self.tr("Introduce una descripción (opcional):"))
+        layout.addWidget(desc_label)
+        
+        desc_edit = QLineEdit()
+        layout.addWidget(desc_edit)
+        
+        # Botones - con layout horizontal para separarlos
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        
+        cancel_button = QPushButton(self.tr("Cancelar"))
+        create_button = QPushButton(self.tr("Crear"))
+        
+        button_layout.addWidget(cancel_button, 0, Qt.AlignLeft)
+        button_layout.addStretch(1)  # Espaciador para separar los botones
+        button_layout.addWidget(create_button, 0, Qt.AlignRight)
+        
+        layout.addWidget(button_container)
+        
+        # Conectar señales
+        def create_snapshot():
+            name = name_edit.text().strip()
+            description = desc_edit.text().strip()
+            
+            command = "pkexec deepin-immutable-ctl snapshot create"
+            if name:
+                command += f' "{name}"'
+            if description:
+                command += f' "{description}"'
+            
+            self.confirm_action(
+                self.tr("Confirmar Creación de Snapshot"),
+                self.tr("¿Está seguro que desea crear un snapshot con nombre '{}'?").format(name if name else self.tr("sin nombre")),
+                command
             )
-            if ok_desc:
-                command = "pkexec deepin-immutable-ctl snapshot create"
-                if text:
-                    command += f' --name="{text}"'
-                if description:
-                    command += f' --description="{description}"'
-                
-                self.confirm_action(
-                    "Confirmar Creación de Snapshot",
-                    f"¿Está seguro que desea crear un snapshot con nombre '{text}'?",
-                    command
-                )
+            dialog.accept()
+        
+        create_button.clicked.connect(create_snapshot)
+        cancel_button.clicked.connect(dialog.reject)
+        
+        dialog.exec()
 
     def show_modify_snapshot_dialog(self):
         snapshot_id = self.get_selected_snapshot_id()
         if not snapshot_id:
-            QMessageBox.warning(self, "Advertencia", "Selecciona un snapshot primero")
+            QMessageBox.warning(self, self.tr("Advertencia"), self.tr("Selecciona un snapshot primero"))
             return
 
-        name, ok_name = QInputDialog.getText(
-            self, "Modificar Snapshot",
-            f"Nuevo nombre para {snapshot_id} (dejar en blanco para no cambiar):",
-            QLineEdit.Normal, ""
-        )
-        if ok_name:
-            description, ok_desc = QInputDialog.getText(
-                self, "Modificar Snapshot",
-                f"Nueva descripción para {snapshot_id}:",
-                QLineEdit.Normal, ""
-            )
-            if ok_desc:
-                command_parts = [f'pkexec deepin-immutable-ctl snapshot modify "{snapshot_id}"']
-                if name:
-                    command_parts.append(f'--set-name="{name}"')
-                if description:
-                    command_parts.append(f'--set-description="{description}"')
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("Modificar Snapshot"))
+        dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Campo para el nombre
+        name_label = QLabel(self.tr("Nuevo nombre para {} (dejar en blanco para no cambiar):").format(snapshot_id))
+        layout.addWidget(name_label)
+        
+        name_edit = QLineEdit()
+        layout.addWidget(name_edit)
+        
+        # Campo para la descripción
+        desc_label = QLabel(self.tr("Nueva descripción para {}:").format(snapshot_id))
+        layout.addWidget(desc_label)
+        
+        desc_edit = QLineEdit()
+        layout.addWidget(desc_edit)
+        
+        # Botones
+        button_box = QDialogButtonBox()
+        ok_button = button_box.addButton(self.tr("Modificar"), QDialogButtonBox.AcceptRole)
+        cancel_button = button_box.addButton(self.tr("Cancelar"), QDialogButtonBox.RejectRole)
+        layout.addWidget(button_box)
+        
+        # Conectar señales
+        def modify_snapshot():
+            name = name_edit.text().strip()
+            description = desc_edit.text().strip()
+            
+            command_parts = [f'pkexec deepin-immutable-ctl snapshot modify "{snapshot_id}"']
+            if name:
+                command_parts.append(f'"{name}"')
+            if description:
+                command_parts.append(f'"{description}"')
 
-                if len(command_parts) > 1:
-                    self.confirm_action(
-                        "Confirmar Modificación",
-                        f"¿Modificar snapshot {snapshot_id}?",
-                        " ".join(command_parts)
-                    )
+            if len(command_parts) > 1:
+                self.confirm_action(
+                    self.tr("Confirmar Modificación"),
+                    self.tr("¿Modificar snapshot {}?").format(snapshot_id),
+                    " ".join(command_parts)
+                )
+            dialog.accept()
+        
+        ok_button.clicked.connect(modify_snapshot)
+        cancel_button.clicked.connect(dialog.reject)
+        
+        dialog.exec()
 
     def show_snapshot_info(self):
         snapshot_id = self.get_selected_snapshot_id()
@@ -323,8 +388,8 @@ class SnapshotsTab(QWidget):
         snapshot_id = self.get_selected_snapshot_id()
         if snapshot_id:
             self.confirm_action(
-                "Confirmar Eliminación",
-                f"¿Eliminar snapshot {snapshot_id}?",
+                self.tr("Confirmar Eliminación"),
+                self.tr("¿Eliminar snapshot {}?").format(snapshot_id),
                 f'pkexec deepin-immutable-ctl snapshot delete "{snapshot_id}"'
             )
 
@@ -332,8 +397,8 @@ class SnapshotsTab(QWidget):
         snapshot_id = self.get_selected_snapshot_id()
         if snapshot_id:
             self.confirm_action(
-                "Confirmar Reversión",
-                f"¡ADVERTENCIA! Revertir a {snapshot_id} es irreversible",
+                self.tr("Confirmar Reversión"),
+                self.tr("¡ADVERTENCIA! Revertir a {} es irreversible").format(snapshot_id),
                 f'pkexec deepin-immutable-ctl snapshot rollback "{snapshot_id}"',
                 requires_reboot=True
             )

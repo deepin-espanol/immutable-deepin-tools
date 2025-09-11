@@ -29,8 +29,6 @@ install: build
 	# Add here commands to install the package into immutable-deepin-tools.
 	install -d $(DESTDIR)/usr/bin
 	install -m 755 immutable-deepin-tools $(DESTDIR)/usr/bin/
-	install -d $(DESTDIR)/usr/share/immutable-deepin-tools/icons
-	install -m 644 data/icons/*.png $(DESTDIR)/usr/share/immutable-deepin-tools/icons/
 	install -d $(DESTDIR)/usr/share/applications
 	install -m 644 data/immutable-deepin-tools.desktop $(DESTDIR)/usr/share/applications/
 	install -d $(DESTDIR)/usr/share/icons/hicolor/scalable/apps

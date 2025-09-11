@@ -62,18 +62,18 @@ class AdminTab(QWidget):
         
         # Botón Ejecutar Comando
         self.btn_exec = self.create_modern_button(
-            "Ejecutar Comando",
+            self.tr("Ejecutar Comando"),
             "admin-run",
-            "Ejecutar comandos sin la desactivación de la capa inmutable",
+            self.tr("Ejecutar comandos sin la desactivación de la capa inmutable"),
             "#3498db"
         )
         top_buttons_layout.addWidget(self.btn_exec, 1)
         
         # Botón Operación de Archivos
         self.btn_file_op = self.create_modern_button(
-            "Manipular Archivos",
+            self.tr("Manipular Archivos"),
             "file-operation",
-            "Realizar operaciones avanzadas en archivos",
+            self.tr("Realizar operaciones avanzadas en archivos"),
             "#2ecc71"
         )
         top_buttons_layout.addWidget(self.btn_file_op, 1)
@@ -81,13 +81,13 @@ class AdminTab(QWidget):
         layout.addLayout(top_buttons_layout)
 
         # Sección media: Acciones de despliegue
-        deploy_group = QGroupBox("Opciones de Despliegue")
+        deploy_group = QGroupBox(self.tr("Opciones de Despliegue"))
         deploy_layout = QGridLayout(deploy_group)
         
         # Botones de despliegue con nuevo diseño
-        self.btn_deploy = self.create_small_button("Desplegar", "deploy-save", "#f39c12")
-        self.btn_finalize = self.create_small_button("Finalizar", "deploy-finalize", "#e74c3c")
-        self.btn_rollback = self.create_small_button("Revertir", "deploy-rollback", "#9b59b6")
+        self.btn_deploy = self.create_small_button(self.tr("Desplegar"), "deploy-save", "#f39c12")
+        self.btn_finalize = self.create_small_button(self.tr("Finalizar"), "deploy-finalize", "#e74c3c")
+        self.btn_rollback = self.create_small_button(self.tr("Revertir"), "deploy-rollback", "#9b59b6")
         
         deploy_layout.addWidget(self.btn_deploy, 0, 0)
         deploy_layout.addWidget(self.btn_finalize, 0, 1)
@@ -131,7 +131,7 @@ class AdminTab(QWidget):
             icon_label.setPixmap(QIcon.fromTheme("go-previous").pixmap(16, 16))
             btn_back_layout.addWidget(icon_label)
 
-        text_label = QLabel("Volver")
+        text_label = QLabel(self.tr("Volver"))
         btn_back_layout.addWidget(text_label)
         
         btn_back.setStyleSheet("""
@@ -150,19 +150,19 @@ class AdminTab(QWidget):
         layout.addWidget(btn_back, alignment=Qt.AlignLeft)
         
         # Descripción del proceso
-        description = QLabel("""
-            <p>Esta herramienta ejecutará el comando bajo <code>deepin-immutable-ctl admin exec</code>, 
-            lo que permite realizar cambios temporales en el sistema inmutable.</p>
-            
-            <p><b>Advertencias:</b></p>
-            <ul>
-                <li>Manipular archivos del sistema puede causar inestabilidad</li>
-                <li>Los cambios pueden perderse al reiniciar si no se consolidan</li>
-                <li>Algunas operaciones pueden requerir reinicio para aplicar cambios</li>
-            </ul>
-            
-            <p><b>Se recomienda que realice una copia de seguridad para cambios importantes.</b></p>
-        """)
+        description_text = self.tr("""Esta herramienta ejecutará el comando bajo <code>deepin-immutable-ctl admin exec</code>, 
+lo que permite realizar cambios temporales en el sistema inmutable.
+
+<b>Advertencias:</b>
+<ul>
+<li>Manipular archivos del sistema puede causar inestabilidad</li>
+<li>Los cambios pueden perderse al reiniciar si no se consolidan</li>
+<li>Algunas operaciones pueden requerir reinicio para aplicar cambios</li>
+</ul>
+
+<b>Se recomienda que realice una copia de seguridad para cambios importantes.</b>""")
+        
+        description = QLabel(description_text)
         description.setStyleSheet("""
             QLabel {
                 border: 1px solid #ddd;
@@ -174,7 +174,7 @@ class AdminTab(QWidget):
         layout.addWidget(description)
         
         # Título
-        title = QLabel("Ejecutar Comando (admin)")
+        title = QLabel(self.tr("Ejecutar Comando (admin)"))
         title.setStyleSheet("""
             QLabel {
                 font-size: 18px;
@@ -190,7 +190,7 @@ class AdminTab(QWidget):
         
         # Campo de entrada de comandos
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("Ingresa el comando ej: apt update && apt upgrade -y")
+        self.cmd_input.setPlaceholderText(self.tr("Ingresa el comando ej: apt update && apt upgrade -y"))
         input_container.addWidget(self.cmd_input, stretch=1)  # El campo de entrada ocupa todo el espacio disponible
         
         # Botón de ejecución con icono y texto
@@ -213,7 +213,7 @@ class AdminTab(QWidget):
         btn_layout.addWidget(execute_icon)
         
         # Texto del botón
-        execute_text = QLabel("Ejecutar")
+        execute_text = QLabel(self.tr("Ejecutar"))
         execute_text.setStyleSheet("font-weight: bold;")
         btn_layout.addWidget(execute_text)
         
@@ -236,7 +236,7 @@ class AdminTab(QWidget):
         layout.addLayout(input_container)
 
         # Sección de comandos comunes
-        common_commands_group = QGroupBox("Comandos comunes")
+        common_commands_group = QGroupBox(self.tr("Comandos comunes"))
         common_commands_layout = QGridLayout(common_commands_group)
         
         common_commands = [
@@ -286,7 +286,7 @@ class AdminTab(QWidget):
             icon_label.setPixmap(QIcon.fromTheme("go-previous").pixmap(16, 16))
             btn_back_layout.addWidget(icon_label)
 
-        text_label = QLabel("Volver")
+        text_label = QLabel(self.tr("Volver"))
         btn_back_layout.addWidget(text_label)
         
         btn_back.setStyleSheet("""
@@ -304,22 +304,18 @@ class AdminTab(QWidget):
         btn_back.clicked.connect(self.show_main_view)
         layout.addWidget(btn_back, alignment=Qt.AlignLeft)
         
-        # Descripción del proceso (igual que antes)
-        description = QLabel("""
-            <p>Esta herramienta permite realizar operaciones en archivos del sistema 
-            usando <code>deepin-immutable-ctl admin file-op</code>.</p>
-            
-            <p><b>Operaciones disponibles:</b></p>
-            <ul>
-                <li><b>setxattr</b>: Establecer atributos extendidos (ej: setxattr /ruta/al/archivo user.key=value)</li>
-                <li><b>rmxattr</b>: Eliminar atributos extendidos (ej: rmxattr /ruta/al/archivo user.key)</li>
-                <li><b>chattr</b>: Cambiar atributos de archivo (ej: chattr /ruta/al/archivo +i)</li>
-                <li><b>chown</b>: Cambiar propietario/grupo (ej: chown /ruta/al/archivo usuario:grupo)</li>
-                <li><b>chmod</b>: Cambiar permisos (ej: chmod /ruta/al/archivo 755)</li>
-            </ul>
-            
-            <p><b>⚠️ Advertencia:</b> Estas operaciones afectan directamente al sistema de archivos.</p>
-        """)
+        # Descripción del proceso
+        description_text = self.tr("""Esta herramienta permite realizar operaciones en archivos del sistema 
+usando deepin-immutable-ctl admin file-op.
+
+Operaciones disponibles:
+Establecer atributos extendidos (ej: setxattr /ruta/al/archivo user.key=value)
+Eliminar atributos extendidos (ej: rmxattr /ruta/al/archivo user.key)
+Cambiar atributos de archivo (ej: chattr /ruta/al/archivo +i)
+
+Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
+        
+        description = QLabel(description_text)
         description.setStyleSheet("""
             QLabel {
                 border: 1px solid #ddd;
@@ -332,7 +328,7 @@ class AdminTab(QWidget):
         layout.addWidget(description)
         
         # Título
-        title = QLabel("Operaciones de Archivos")
+        title = QLabel(self.tr("Operaciones de Archivos"))
         title.setStyleSheet("""
             QLabel {
                 font-size: 18px;
@@ -348,7 +344,7 @@ class AdminTab(QWidget):
         
         # Campo de entrada para la operación
         self.file_op_input = QLineEdit()
-        self.file_op_input.setPlaceholderText("Ingrese la operación de archivo (ej: setxattr /ruta/al/archivo user.key=value)")
+        self.file_op_input.setPlaceholderText(self.tr("Ingrese la operación de archivo (ej: setxattr /ruta/al/archivo user.key=value)"))
         input_container.addWidget(self.file_op_input, stretch=1)  # El campo de entrada ocupa todo el espacio disponible
         
         # Botón de ejecución con icono y texto (igual que en comandos)
@@ -371,7 +367,7 @@ class AdminTab(QWidget):
         btn_layout.addWidget(execute_icon)
         
         # Texto del botón
-        execute_text = QLabel("Ejecutar")
+        execute_text = QLabel(self.tr("Ejecutar"))
         execute_text.setStyleSheet("font-weight: bold;")
         btn_layout.addWidget(execute_text)
         
@@ -402,13 +398,13 @@ class AdminTab(QWidget):
         layout.addLayout(input_container)
 
         # Ejemplos de comandos
-        examples_group = QGroupBox("Ejemplos de Operaciones")
+        examples_group = QGroupBox(self.tr("Ejemplos de Operaciones"))
         examples_layout = QVBoxLayout(examples_group)
         
         examples = [
-            ("Cambiar atributos", "chattr /ruta/al/archivo +i"),
-            ("Eliminar atributos", "rmxattr /ruta/al/archivo user.key"),
-            ("Establecer atributos", "setxattr /ruta/al/archivo user.key=value"),
+            (self.tr("Cambiar atributos"), "chattr /ruta/al/archivo +i"),
+            (self.tr("Eliminar atributos"), "rmxattr /ruta/al/archivo user.key"),
+            (self.tr("Establecer atributos"), "setxattr /ruta/al/archivo user.key=value"),
         ]
         
         for desc, cmd in examples:
@@ -549,12 +545,12 @@ class AdminTab(QWidget):
         
         # Descripción (diferente según el botón)
         desc_text = ""
-        if text == "Desplegar":
-            desc_text = "Crear nueva versión con cambios"
-        elif text == "Finalizar":
-            desc_text = "Consolidar cambios en el sistema"
-        elif text == "Revertir":
-            desc_text = "Volver a la versión anterior"
+        if text == self.tr("Desplegar"):
+            desc_text = self.tr("Crear nueva versión con cambios")
+        elif text == self.tr("Finalizar"):
+            desc_text = self.tr("Consolidar cambios en el sistema")
+        elif text == self.tr("Revertir"):
+            desc_text = self.tr("Volver a la versión anterior")
         
         desc_label = QLabel(desc_text)
         desc_label.setAlignment(Qt.AlignCenter)
@@ -605,7 +601,7 @@ class AdminTab(QWidget):
         """Ejecuta el comando desde la vista de comandos"""
         command = self.cmd_input.text().strip()
         if not command:
-            QMessageBox.warning(self, "Error", "Por favor ingrese un comando válido")
+            QMessageBox.warning(self, self.tr("Error"), self.tr("Por favor ingrese un comando válido"))
             return
         
         try:
@@ -613,18 +609,18 @@ class AdminTab(QWidget):
             full_command = f"/usr/bin/deepin-terminal -e 'bash -c \"pkexec {terminal_command}; exec bash\"'"
             process = Popen(full_command, shell=True, stdout=PIPE, stderr=PIPE)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir la terminal: {str(e)}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo abrir la terminal: {0}").format(str(e)))
 
     def execute_file_op(self):
         """Ejecuta la operación de archivos"""
         operation = self.file_op_input.text().strip()
         if not operation:
-            QMessageBox.warning(self, "Error", "Por favor ingrese una operación válida")
+            QMessageBox.warning(self, self.tr("Error"), self.tr("Por favor ingrese una operación válida"))
             return
         
         self.confirm_action(
-            "Confirmar Operación de Archivos",
-            f"¿Está seguro que desea ejecutar la siguiente operación?\n\n{operation}",
+            self.tr("Confirmar Operación de Archivos"),
+            self.tr("¿Está seguro que desea ejecutar la siguiente operación?\n\n{0}").format(operation),
             f"pkexec deepin-immutable-ctl admin file-op {operation}",
             show_console=True
         )
@@ -645,20 +641,22 @@ class AdminTab(QWidget):
     def show_deploy_dialog(self):
         """Muestra un diálogo para seleccionar opciones de deploy con explicación detallada"""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Desplegar Cambios en el Sistema")
+        dialog.setWindowTitle(self.tr("Desplegar Cambios en el Sistema"))
         dialog.setFixedSize(500, 330)
         
         layout = QVBoxLayout(dialog)
         layout.setSpacing(10)
         
-        explanation = QLabel("""
-            Esta acción creará una nueva versión del sistema con los cambios actuales.<br><br>
-            <b>Cambios que se aplicarán:</b><br>
-            • Se creará un nuevo snapshot del estado actual<br>
-            • Se preparará para el próximo arranque<br>
-            • Se mantendrán los archivos modificados<br><br>
-            Seleccione las opciones adicionales:
-        """)
+        explanation_text = self.tr("""Esta acción creará una nueva versión del sistema con los cambios actuales.
+
+Cambios que se aplicarán:
+• Se creará un nuevo snapshot del estado actual
+• Se preparará para el próximo arranque
+• Se mantendrán los archivos modificados
+
+Seleccione las opciones adicionales:""")
+        
+        explanation = QLabel(explanation_text)
         explanation.setStyleSheet("""
             QLabel {
                 font-size: 13px;
@@ -670,14 +668,14 @@ class AdminTab(QWidget):
         
         layout.addWidget(explanation)
         
-        self.backup_check = QCheckBox("Crear backup del sistema actual (--backup)")
-        self.backup_check.setToolTip("Crea una copia de seguridad adicional del estado actual")
+        self.backup_check = QCheckBox(self.tr("Crear backup del sistema actual (--backup)"))
+        self.backup_check.setToolTip(self.tr("Crea una copia de seguridad adicional del estado actual"))
         
-        self.refresh_check = QCheckBox("Refrescar capa de modificación (--refresh)")
-        self.refresh_check.setToolTip("Actualiza los archivos modificados en la capa superior")
+        self.refresh_check = QCheckBox(self.tr("Refrescar capa de modificación (--refresh)"))
+        self.refresh_check.setToolTip(self.tr("Actualiza los archivos modificados en la capa superior"))
         
-        self.append_check = QCheckBox("Añadir como nuevo despliegue (--append)")
-        self.append_check.setToolTip("Método obsoleto, no recomendado para uso normal")
+        self.append_check = QCheckBox(self.tr("Añadir como nuevo despliegue (--append)"))
+        self.append_check.setToolTip(self.tr("Método obsoleto, no recomendado para uso normal"))
         
         layout.addWidget(self.backup_check)
         layout.addWidget(self.refresh_check)
@@ -685,9 +683,9 @@ class AdminTab(QWidget):
         
         # Botones
         btn_box = QHBoxLayout()
-        btn_ok = QPushButton("Desplegar")
+        btn_ok = QPushButton(self.tr("Desplegar"))
         btn_ok.clicked.connect(lambda: self.execute_deploy(dialog))
-        btn_cancel = QPushButton("Cancelar")
+        btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_cancel.clicked.connect(dialog.reject)
         
         btn_box.addWidget(btn_ok)
@@ -709,8 +707,8 @@ class AdminTab(QWidget):
         
         dialog.accept()
         self.confirm_action(
-            "Confirmar Despliegue",
-            f"¿Está seguro que desea ejecutar el despliegue con estas opciones?\n\nComando: {command}",
+            self.tr("Confirmar Despliegue"),
+            self.tr("¿Está seguro que desea ejecutar el despliegue con estas opciones?\n\nComando: {0}").format(command),
             command,
             show_console=True
         )
@@ -719,28 +717,27 @@ class AdminTab(QWidget):
         """Confirma la finalización del despliegue con explicación detallada"""
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Confirmar Finalización")
-        msg.setText("<h3>Finalizar Despliegue</h3>")
+        msg.setWindowTitle(self.tr("Confirmar Finalización"))
+        msg.setText(self.tr("<h3>Finalizar Despliegue</h3>"))
         
-        detailed_msg = (
-            "Esta acción realizará los siguientes cambios:\n"
-            "• Eliminará las entradas de despliegue temporales\n"
-            "• Consolidará los cambios en la versión principal\n"
-            "• Limpiará archivos temporales\n\n"
-            "<b>⚠️ Advertencia:</b>\n"
-            "• Requerirá reinicio del sistema\n"
-            "• No se podrá revertir esta acción\n"
-        )
+        detailed_msg = self.tr("""Esta acción realizará los siguientes cambios:
+• Eliminará las entradas de despliegue temporales
+• Consolidará los cambios en la versión principal
+• Limpiará archivos temporales
+
+Advertencia:
+• Requerirá reinicio del sistema
+• No se podrá revertir esta acción""")
         
         msg.setInformativeText(detailed_msg)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setButtonText(QMessageBox.Yes, "Continuar")
-        msg.setButtonText(QMessageBox.No, "Cancelar")
+        msg.setButtonText(QMessageBox.Yes, self.tr("Continuar"))
+        msg.setButtonText(QMessageBox.No, self.tr("Cancelar"))
         
         if msg.exec() == QMessageBox.Yes:
             self.parent.confirm_action(
-                "Finalizar Despliegue",
-                "¿Confirmas que deseas finalizar el despliegue?",
+                self.tr("Finalizar Despliegue"),
+                self.tr("¿Confirmas que deseas finalizar el despliegue?"),
                 "pkexec deepin-immutable-ctl admin deploy --finalize",
                 show_console=True,
                 requires_reboot=True
@@ -750,29 +747,28 @@ class AdminTab(QWidget):
         """Confirma la reversión al estado anterior con explicación detallada"""
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Confirmar Reversión")
-        msg.setText("<h3>Revertir Sistema</h3>")
+        msg.setWindowTitle(self.tr("Confirmar Reversión"))
+        msg.setText(self.tr("<h3>Revertir Sistema</h3>"))
         
-        detailed_msg = (
-            "Esta acción realizará los siguientes cambios:\n"
-            "• Restaurará el sistema al estado anterior\n"
-            "• Eliminará los cambios no consolidados\n"
-            "• Configurará el arranque a la versión previa\n\n"
-            "<b>⚠️ Advertencia:</b>\n"
-            "• Requerirá reinicio del sistema\n"
-            "• Todos los cambios no consolidados se perderán\n"
-            "• No se podrá deshacer esta acción\n"
-        )
+        detailed_msg = self.tr("""Esta acción realizará los siguientes cambios:
+• Restaurará el sistema al estado anterior
+• Eliminará los cambios no consolidados
+• Configurará el arranque a la versión previa
+
+Advertencia:
+• Requerirá reinicio del sistema
+• Todos los cambios no consolidados se perderán
+• No se podrá deshacer esta acción""")
         
         msg.setInformativeText(detailed_msg)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setButtonText(QMessageBox.Yes, "Revertir")
-        msg.setButtonText(QMessageBox.No, "Cancelar")
+        msg.setButtonText(QMessageBox.Yes, self.tr("Revertir"))
+        msg.setButtonText(QMessageBox.No, self.tr("Cancelar"))
         
         if msg.exec() == QMessageBox.Yes:
             self.parent.confirm_action(
-                "Confirmar Reversión",
-                "¿Confirmas que deseas revertir el sistema?",
+                self.tr("Confirmar Reversión"),
+                self.tr("¿Confirmas que deseas revertir el sistema?"),
                 "pkexec deepin-immutable-ctl admin rollback",
                 show_console=True,
                 requires_reboot=True
@@ -785,27 +781,27 @@ class AdminTab(QWidget):
     def show_file_op_dialog(self):
         """Muestra diálogo para operaciones de archivos"""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Operación de Archivos")
+        dialog.setWindowTitle(self.tr("Operación de Archivos"))
         dialog.setFixedSize(600, 450)
 
         layout = QVBoxLayout(dialog)
 
         form = QFormLayout()
         op_input = QLineEdit()
-        op_input.setPlaceholderText("ej: setxattr /ruta/al/archivo user.key=value")
-        form.addRow("Operación:", op_input)
+        op_input.setPlaceholderText(self.tr("ej: setxattr /ruta/al/archivo user.key=value"))
+        form.addRow(self.tr("Operación:"), op_input)
         layout.addLayout(form)
 
         buttons = QHBoxLayout()
-        btn_ok = QPushButton("Ejecutar")
+        btn_ok = QPushButton(self.tr("Ejecutar"))
         btn_ok.clicked.connect(lambda: self.confirm_action(
-            "Confirmar Operación de Archivos",
-            f"¿Está seguro que desea ejecutar la operación:\n\n{op_input.text()}?\n\nEsta acción requiere privilegios de root.",
+            self.tr("Confirmar Operación de Archivos"),
+            self.tr("¿Está seguro que desea ejecutar la operación:\n\n{0}?\n\nEsta acción requiere privilegios de root.").format(op_input.text()),
             f"pkexec deepin-immutable-ctl admin file-op {op_input.text()}",
             show_console=True
         ))
         btn_ok.clicked.connect(dialog.accept)
-        btn_cancel = QPushButton("Cancelar")
+        btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_cancel.clicked.connect(dialog.reject)
         buttons.addWidget(btn_ok)
         buttons.addWidget(btn_cancel)

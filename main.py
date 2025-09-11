@@ -9,13 +9,49 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                               QTabWidget, QGroupBox, QPushButton, QLabel, QTextEdit,
                               QMessageBox, QListWidget, QDialog, QFormLayout, QLineEdit,
                               QFrame, QSizePolicy, QMenu, QGraphicsDropShadowEffect, QInputDialog,
-                              QStackedWidget, QGridLayout, QListWidgetItem)
+                              QStackedWidget, QGridLayout, QListWidgetItem, QComboBox, QDialogButtonBox)
 from PySide6.QtGui import QIcon, QColor, QPalette, QPainter, QRegion, QCursor, QPainterPath, QDesktopServices, QTextCursor
-from PySide6.QtCore import Qt, Signal, QObject, QPoint, QSize, QRect, QDir, QUrl, QTimer, QProcess
+from PySide6.QtCore import Qt, Signal, QObject, QPoint, QSize, QRect, QDir, QUrl, QTimer, QProcess, QTranslator, QLibraryInfo
 
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = os.path.join(
     os.path.dirname(sys.executable), 'plugins'
 )
+
+def setup_translator(app):
+    translator = QTranslator(app)
+    
+    qt_translations_path = QLibraryInfo.path(QLibraryInfo.TranslationsPath)
+    if translator.load("qt_es", qt_translations_path):
+        app.installTranslator(translator)
+    
+    app_translator = QTranslator(app)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    translations_dir = os.path.join(current_dir, "resources", "langs")
+    
+    if not os.path.exists(translations_dir):
+        os.makedirs(translations_dir)
+    
+    config = ConfigManager.load_config()
+    language = config.get("language", "system")  
+    
+    if language == "system":
+        system_language = os.environ.get('LANG', '').split('.')[0] or 'es'
+        lang_code = system_language.split('_')[0] if '_' in system_language else system_language
+    else:
+        lang_code = language
+    
+    translation_file = f"immutable-deepin-tools_{lang_code}.qm"
+    translation_path = os.path.join(translations_dir, translation_file)
+    
+    if os.path.exists(translation_path) and app_translator.load(translation_path):
+        app.installTranslator(app_translator)
+    elif lang_code != "en": 
+        translation_file = "immutable-deepin-tools_es.qm"
+        translation_path = os.path.join(translations_dir, translation_file)
+        if os.path.exists(translation_path) and app_translator.load(translation_path):
+            app.installTranslator(app_translator)
+    
+    return lang_code
 
 class ConfigManager:
     @staticmethod
@@ -35,7 +71,7 @@ class ConfigManager:
                     return json.load(f)
             except Exception as e:
                 print(f"Error loading config: {e}")
-        return {"dark_mode": True}  # Default value
+        return {"dark_mode": True, "language": "system"}  # Valores por defecto
 
     @staticmethod
     def save_config(config):
@@ -129,7 +165,7 @@ class ThemeManager:
             color: #FFFFFF;
         }
         #nav_list::item:selected:hover {
-            background-color: #006BB3; 
+            background-color: #006BB3;  /* Un azul más oscuro para el hover en seleccionado */
             color: #FFFFFF;
         }
 
@@ -901,9 +937,26 @@ class CustomTitleBar(QWidget):
             self.icon_label.setPixmap(QIcon.fromTheme("system-run").pixmap(24, 24))
         layout.addWidget(self.icon_label)
 
-        self.title = QLabel("Immutable Deepin Tools")
+        self.title = QLabel(self.tr("Immutable Deepin Tools"))
         self.title.setObjectName("title_label")
         layout.addWidget(self.title, 1, Qt.AlignLeft | Qt.AlignVCenter)
+
+        # Botón para cambiar idioma - CON ICONO PERSONALIZADO
+        self.language_button = QPushButton()
+        self.language_button.setObjectName("window_button")
+        self.language_button.setFixedSize(24, 24)
+        
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        language_icon_path = os.path.join(current_dir, "resources", "language-button.png")
+        
+        if os.path.exists(language_icon_path):
+            self.language_button.setIcon(QIcon(language_icon_path))
+        else:
+            self.language_button.setIcon(QIcon.fromTheme("preferences-desktop-locale"))
+            
+        self.language_button.setToolTip(self.tr("Cambiar idioma"))
+        self.language_button.clicked.connect(self.parent.show_language_dialog)
+        layout.addWidget(self.language_button, 0, Qt.AlignRight | Qt.AlignVCenter)
 
         self.theme_button = QPushButton()
         self.theme_button.setObjectName("window_button")
@@ -911,7 +964,7 @@ class CustomTitleBar(QWidget):
         
         self.update_theme_icon()
         
-        self.theme_button.setToolTip("Cambiar tema claro/oscuro")
+        self.theme_button.setToolTip(self.tr("Cambiar tema claro/oscuro"))
         self.theme_button.clicked.connect(self.parent.toggle_theme)
         layout.addWidget(self.theme_button, 0, Qt.AlignRight | Qt.AlignVCenter)
 
@@ -970,7 +1023,7 @@ class RoundedWindow(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setMinimumSize(900, 600)
 
-        self.setWindowTitle("Immutable Deepin Tools")
+        self.setWindowTitle(self.tr("Immutable Deepin Tools"))
         
         self.setProperty("WM_CLASS", "immutable-deepin-tools") 
 
@@ -1005,8 +1058,9 @@ class RoundedWindow(QMainWindow):
         super().resizeEvent(event)
 
 class ConsoleOutputDialog(QDialog):
-    def __init__(self, parent=None, title_text="Salida de Comandos", controller=None):
+    def __init__(self, parent=None, title_text=None, controller=None):
         super().__init__(parent)
+        title_text = title_text or self.tr("Salida de Comandos")
         self.setWindowTitle(title_text)
         self.setFixedSize(600, 500)  
         
@@ -1026,19 +1080,19 @@ class ConsoleOutputDialog(QDialog):
         self.button_layout = QHBoxLayout(self.button_box)
         self.button_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.close_button = QPushButton("Cerrar")
+        self.close_button = QPushButton(self.tr("Cerrar"))
         self.close_button.setObjectName("close_button")
         self.close_button.clicked.connect(self.close)
         self.close_button.hide()
         self.button_layout.addWidget(self.close_button)
         
-        self.reboot_now_button = QPushButton("Reiniciar Ahora")
+        self.reboot_now_button = QPushButton(self.tr("Reiniciar Ahora"))
         self.reboot_now_button.setObjectName("reboot_button")
         self.reboot_now_button.clicked.connect(self.reboot_system)
         self.reboot_now_button.hide()
         self.button_layout.addWidget(self.reboot_now_button)
         
-        self.reboot_later_button = QPushButton("Más Tarde")
+        self.reboot_later_button = QPushButton(self.tr("Más Tarde"))
         self.reboot_later_button.setObjectName("reboot_button")
         self.reboot_later_button.clicked.connect(self.close)
         self.reboot_later_button.hide()
@@ -1050,10 +1104,11 @@ class ConsoleOutputDialog(QDialog):
         self.output_area.clear()
 
     def append_output(self, text):
-        if text == "":  
+        if text == "":  # Señal especial para limpiar la consola
             self.clear_output()
             return
             
+        # Resto del método original
         self.output_area.append(text)
         cursor = self.output_area.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -1062,12 +1117,12 @@ class ConsoleOutputDialog(QDialog):
 
     def command_finished(self, exit_code):
         if exit_code == 0:
-            self.append_output("\n✅ Comando ejecutado con éxito")
+            self.append_output(f"\n{self.tr('✅ Comando ejecutado con éxito')}")
         else:
-            self.append_output(f"\n❌ Comando terminado con código de error: {exit_code}")
+            self.append_output(f"\n{self.tr('❌ Comando terminado con código de error:')} {exit_code}")
         
         if self.requires_reboot:
-            self.append_output("\n⚠️ Se requiere reinicio del sistema para aplicar los cambios")
+            self.append_output(f"\n{self.tr('⚠️ Se requiere reinicio del sistema para aplicar los cambios')}")
             self.reboot_now_button.show()
             self.reboot_later_button.show()
             self.close_button.hide()  
@@ -1081,7 +1136,7 @@ class ConsoleOutputDialog(QDialog):
             self.raise_()
 
     def reboot_system(self):
-        self.append_output("\n🔄 Iniciando reinicio del sistema...")
+        self.append_output(f"\n{self.tr('🔄 Iniciando reinicio del sistema...')}")
         QTimer.singleShot(1000, lambda: self.controller.execute_command("systemctl reboot", show_in_console=False))
         self.close()
 
@@ -1098,7 +1153,7 @@ class ImmutableController(QObject):
     def execute_command(self, command, show_in_console=True, env=None):
         try:
             if show_in_console:
-                self.commandOutput.emit("") 
+                self.commandOutput.emit("")  # Señal especial para limpiar
                 self.commandOutput.emit(f"$ {command}\n")
                 self.commandOutput.emit("="*80 + "\n")
 
@@ -1120,6 +1175,7 @@ class ImmutableController(QObject):
                 full_command = command
 
             if not show_in_console:
+                # Usar el entorno proporcionado o el actual
                 process_env = os.environ.copy()
                 if env:
                     process_env.update(env)
@@ -1139,6 +1195,7 @@ class ImmutableController(QObject):
             self.process.readyReadStandardError.connect(self.handle_stderr)
             self.process.finished.connect(self.handle_finished)
             
+            # Configurar el entorno si se proporciona
             if env:
                 process_env = self.process.processEnvironment()
                 for key, value in env.items():
@@ -1149,7 +1206,7 @@ class ImmutableController(QObject):
             return ""
 
         except Exception as e:
-            error_msg = f"Error ejecutando comando: {str(e)}"
+            error_msg = f"{self.tr('Error ejecutando comando:')} {str(e)}"
             if show_in_console:
                 self.commandOutput.emit(error_msg)
             return error_msg
@@ -1169,21 +1226,155 @@ class ImmutableController(QObject):
         self.commandFinished.emit(exit_code)
         self.process = None
 
+class LanguageDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Seleccionar idioma"))
+        self.setFixedSize(400, 150)
+        
+        layout = QVBoxLayout(self)
+        
+        layout.addWidget(QLabel(self.tr("Seleccione su idioma preferido:")))
+        
+        self.language_combo = QComboBox()
+        self.language_combo.addItem(self.tr("Sistema (predeterminado)"), "system")
+        self.language_combo.addItem("English", "en")
+        self.language_combo.addItem("Español", "es")
+        self.language_combo.addItem("Português", "pt")
+        self.language_combo.addItem("Chinese", "zh_CN")
+
+        # Aplicar estilo al combobox
+        self.language_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #444444;
+                border-radius: 6px;
+                padding: 8px;
+                background-color: #3A3A3A;
+                color: #BEBEBE;
+                min-height: 25px;
+            }
+            QComboBox:hover {
+                border: 1px solid #555555;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 25px;
+                border-left-width: 1px;
+                border-left-color: #444444;
+                border-left-style: solid;
+                border-top-right-radius: 6px;
+                border-bottom-right-radius: 6px;
+                background-color: #4A4A4A;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 4px solid none;
+                border-right: 4px solid none;
+                border-top: 5px solid #BEBEBE;
+                margin-right: 8px;
+            }
+            QComboBox QAbstractItemView {
+                border: 1px solid #444444;
+                border-radius: 6px;
+                background-color: #3A3A3A;
+                color: #BEBEBE;
+                selection-background-color: #0081FF;
+                selection-color: white;
+                outline: 0px;
+            }
+            QComboBox QAbstractItemView::item {
+                padding: 8px;
+                border-radius: 3px;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #4A4A4A;
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: #0081FF;
+                color: white;
+            }
+        """)
+        
+        # Establecer el idioma actual
+        config = ConfigManager.load_config()
+        current_language = config.get("language", "system")
+        index = self.language_combo.findData(current_language)
+        if index >= 0:
+            self.language_combo.setCurrentIndex(index)
+            
+        layout.addWidget(self.language_combo)
+        
+        # Crear un widget contenedor para los botones
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Botón Cancelar a la izquierda
+        self.cancel_button = QPushButton(self.tr("Cancelar"))
+        self.cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(self.cancel_button, 0, Qt.AlignLeft)
+        
+        # Espaciador para separar los botones
+        button_layout.addStretch(1)
+        
+        # Botón Aceptar a la derecha
+        self.ok_button = QPushButton(self.tr("Aceptar"))
+        self.ok_button.clicked.connect(self.accept)
+        button_layout.addWidget(self.ok_button, 0, Qt.AlignRight)
+        
+        layout.addWidget(button_container)
+        
+        # Aplicar estilo a los botones
+        button_style = """
+            QPushButton {
+                background-color: #2ca7f8;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 20px;
+                min-width: 80px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1d8dd8;
+            }
+            QPushButton:pressed {
+                background-color: #0a70b9;
+            }
+        """
+        
+        self.ok_button.setStyleSheet(button_style)
+        self.cancel_button.setStyleSheet(button_style.replace("#2ca7f8", "#E74C3C")
+                                            .replace("#1d8dd8", "#C0392B")
+                                            .replace("#0a70b9", "#A93226"))
+        
+        # Aplicar el estilo de la aplicación al diálogo
+        self.setStyleSheet(QApplication.instance().styleSheet())
+
+    def selected_language(self):
+        return self.language_combo.currentData()
+
 class MainWindow(RoundedWindow):
     def __init__(self):
         super().__init__()
         self.controller = ImmutableController()
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
+        self.snapshots_tab = None
+
+        # Cargar configuración
         config = ConfigManager.load_config()
         self.dark_mode = config.get("dark_mode", True)
         
+        # Aplicar tema según la configuración
         if self.dark_mode:
             self.apply_theme(ThemeManager.dark_theme())
         else:
             self.apply_theme(ThemeManager.light_theme())
 
-        self.console_dialog = ConsoleOutputDialog(self, title_text="Salida de Comandos", controller=self.controller)
+        self.console_dialog = ConsoleOutputDialog(self, title_text=self.tr("Salida de Comandos"), controller=self.controller)
         self.controller.commandStarted.connect(lambda x: None)
         self.controller.commandOutput.connect(self.console_dialog.append_output)
         self.controller.commandFinished.connect(self.console_dialog.command_finished)
@@ -1197,7 +1388,7 @@ class MainWindow(RoundedWindow):
         self.status_timer.start()
 
     def add_nav_item(self, text, icon_name):
-        item = QListWidgetItem(text)
+        item = QListWidgetItem(self.tr(text))
         
         icon_path = os.path.join(self.current_dir, "resources", icon_name)
         
@@ -1216,6 +1407,23 @@ class MainWindow(RoundedWindow):
         
         self.nav_list.addItem(item)
 
+    def show_language_dialog(self):
+        dialog = LanguageDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            new_language = dialog.selected_language()
+            
+            # Guardar la preferencia de idioma
+            config = ConfigManager.load_config()
+            config["language"] = new_language
+            ConfigManager.save_config(config)
+            
+            # Mostrar mensaje de que se necesita reiniciar la aplicación
+            QMessageBox.information(
+                self, 
+                self.tr("Idioma cambiado"), 
+                self.tr("El cambio de idioma se aplicará la próxima vez que inicie la aplicación.")
+            )
+
     def toggle_theme(self):
         self.dark_mode = not self.dark_mode
         if self.dark_mode:
@@ -1223,10 +1431,14 @@ class MainWindow(RoundedWindow):
         else:
             self.apply_theme(ThemeManager.light_theme())
         
-        ConfigManager.save_config({"dark_mode": self.dark_mode})
+        # Guardar configuración
+        config = ConfigManager.load_config()
+        config["dark_mode"] = self.dark_mode
+        ConfigManager.save_config(config)
         
         if hasattr(self, 'title_bar') and hasattr(self.title_bar, 'update_theme_icon'):
             self.title_bar.update_theme_icon()
+            
     def apply_theme(self, stylesheet):
         self.setStyleSheet(stylesheet)
         QApplication.instance().setStyleSheet(stylesheet)
@@ -1257,23 +1469,23 @@ class MainWindow(RoundedWindow):
         is_immutable = "true" in output.lower()
 
         if is_immutable:
-            self.status_label.setText("✔ Sistema en modo inmutable")
+            self.status_label.setText(self.tr("✔ Sistema en modo inmutable"))
             self.status_label.setStyleSheet("color: #2ECC71;")
             self.btn_disable_immutable.setEnabled(True)
             self.btn_enable_immutable.setEnabled(False)
         else:
-            self.status_label.setText("✖ Sistema NO está en modo inmutable")
+            self.status_label.setText(self.tr("✖ El sistema NO está en modo inmutable"))
             self.status_label.setStyleSheet("color: #E74C3C;")
             self.btn_disable_immutable.setEnabled(False)
             self.btn_enable_immutable.setEnabled(True)
 
     def disable_immutable_mode(self):
         self.confirm_action(
-            "Confirmar Desactivación de Inmutabilidad",
-            "¿Está seguro que desea desactivar el modo inmutable?\n\n"
-            "Esto hará que el directorio '/usr' sea escribible, permitiendo modificaciones en el sistema base.\n"
-            "Esta acción requiere un reinicio del sistema para aplicar los cambios.\n\n"
-            "Esta acción requiere privilegios de root.",
+            self.tr("Confirmar Desactivación de Inmutabilidad"),
+            self.tr("¿Está seguro que desea desactivar el modo inmutable?\n\n"
+                   "Esto hará que el directorio '/usr' sea escribible, permitiendo modificaciones en el sistema base.\n"
+                   "Esta acción requiere un reinicio del sistema para aplicar los cambios.\n\n"
+                   "Esta acción requiere privilegios de root."),
             "pkexec deepin-immutable-writable enable -d /usr -y",
             show_console=True,
             requires_reboot=True
@@ -1281,11 +1493,11 @@ class MainWindow(RoundedWindow):
 
     def enable_immutable_mode(self):
         self.confirm_action(
-            "Confirmar Activación de Inmutabilidad",
-            "¿Está seguro que desea activar el modo inmutable de nuevo?\n\n"
-            "Esto hará que el directorio '/usr' vuelva a ser de solo lectura, protegiendo el sistema base.\n"
-            "Esta acción requiere un reinicio del sistema para aplicar los cambios.\n\n"
-            "Esta acción requiere privilegios de root.",
+            self.tr("Confirmar Activación de Inmutabilidad"),
+            self.tr("¿Está seguro que desea activar el modo inmutable de nuevo?\n\n"
+                   "Esto hará que el directorio '/usr' vuelva a ser de solo lectura, protegiendo el sistema base.\n"
+                   "Esta acción requiere un reinicio del sistema para aplicar los cambios.\n\n"
+                   "Esta acción requiere privilegios de root."),
             "pkexec deepin-immutable-writable disable -y",
             show_console=True,
             requires_reboot=True
@@ -1300,8 +1512,8 @@ class MainWindow(RoundedWindow):
         msg_box.setText(message)
         
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setButtonText(QMessageBox.Yes, "Sí")
-        msg_box.setButtonText(QMessageBox.No, "No")
+        msg_box.setButtonText(QMessageBox.Yes, self.tr("Sí"))
+        msg_box.setButtonText(QMessageBox.No, self.tr("No"))
         
         msg_box.setDefaultButton(QMessageBox.No)
         msg_box.setStyleSheet(QApplication.instance().styleSheet())
@@ -1316,8 +1528,11 @@ class MainWindow(RoundedWindow):
             else:
                 output = self.controller.execute_command(command, show_in_console=False)
                 
+            # Modifica esta parte para verificar si es un comando de snapshot
             if "snapshot" in command:
-                self.refresh_snapshots()
+                # Llama al refresh_snapshots de la pestaña de snapshots si existe
+                if hasattr(self, 'snapshots_tab') and self.snapshots_tab is not None:
+                    self.snapshots_tab.refresh_snapshots()
             elif "immutable-status" not in command and ("deploy" in command or "rollback" in command):
                 self.check_immutable_status()
             elif "immutable-writable" in command:
@@ -1332,10 +1547,11 @@ class MainWindow(RoundedWindow):
         self.nav_list.setObjectName("nav_list")
         self.nav_list.setFixedWidth(200)
         
-        self.add_nav_item("Estado", "status.png")
-        self.add_nav_item("Administración", "admin.png")
-        self.add_nav_item("Snapshots", "snapshot.png")
-        self.add_nav_item("Acerca de", "about.png")
+        # Usar identificadores únicos en lugar de texto
+        self.add_nav_item("status", "status.png")
+        self.add_nav_item("admin", "admin.png")
+        self.add_nav_item("snapshots", "snapshot.png")
+        self.add_nav_item("about", "about.png")
         self.nav_list.setCurrentRow(0)
         main_content_layout.addWidget(self.nav_list)
 
@@ -1349,8 +1565,16 @@ class MainWindow(RoundedWindow):
 
         self.nav_list.currentRowChanged.connect(self.content_stack.setCurrentIndex)
 
-    def add_nav_item(self, text, icon_name):
-        item = QListWidgetItem(text)
+    def add_nav_item(self, text_id, icon_name):
+        # text_id es un identificador único para cada item
+        translations = {
+            "status": self.tr("Estado"),
+            "admin": self.tr("Administración"),
+            "snapshots": self.tr("Snapshots"),
+            "about": self.tr("Acerca de")
+        }
+        
+        item = QListWidgetItem(translations.get(text_id, text_id))
         
         icon_path = os.path.join(self.current_dir, "resources", icon_name)
         
@@ -1358,11 +1582,12 @@ class MainWindow(RoundedWindow):
             item.setIcon(QIcon(icon_path))
         else:
             icon_mapping = {
-                "Estado": "dialog-information",
-                "Administración": "system-run",
-                "Snapshots": "document-save"
+                "status": "dialog-information",
+                "admin": "system-run",
+                "snapshots": "document-save",
+                "about": "help-about"
             }
-            default_icon = icon_mapping.get(text, "")
+            default_icon = icon_mapping.get(text_id, "")
             if default_icon:
                 item.setIcon(QIcon.fromTheme(default_icon))
         
@@ -1392,7 +1617,7 @@ class MainWindow(RoundedWindow):
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(5)
         
-        title = QLabel("Immutable Deepin Tools")
+        title = QLabel(self.tr("Immutable Deepin Tools"))
         title.setStyleSheet("""
             QLabel {
                 font-size: 24px;
@@ -1402,7 +1627,7 @@ class MainWindow(RoundedWindow):
         title.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         title_layout.addWidget(title, 0, Qt.AlignVCenter)
         
-        subtitle = QLabel("Desarrollado por la comunidad de Deepin en Español.")
+        subtitle = QLabel(self.tr("Desarrollado por la comunidad de Deepin en Español."))
         subtitle.setStyleSheet("""
             QLabel {
                 font-size: 17px;
@@ -1420,48 +1645,57 @@ class MainWindow(RoundedWindow):
         
         layout.addLayout(header_layout)
         
-        version = QLabel("Versión: 1.0.3")
+        version = QLabel(self.tr("Versión: 1.0.4"))
         version.setAlignment(Qt.AlignCenter)
         layout.addWidget(version)
         
         layout.addWidget(self.create_separator())
         
+        # Definir el estilo verde para los enlaces
         link_style = "style='color:#2ECC71; text-decoration:none;'"
         hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
                     "onmouseout=\"this.style.color='#2ECC71'; this.style.textDecoration='none'\""
 
-        developer = QLabel(f"""
+        # CORREGIDO: Textos traducibles envueltos en self.tr()
+        developer_text = self.tr("""
             <b>Desarrollador:</b><br>
-            krafairus - <a href='https://xn--deepinenespaol-1nb.org/participant/krafairus' {link_style} {hover_style}>deepines.com/participant/krafairus</a>
-        """)
+            krafairus - <a href='https://xn--deepinenespaol-1nb.org/participant/krafairus' {0} {1}>deepines.com/participant/krafairus</a>
+        """).format(link_style, hover_style)
+        
+        developer = QLabel(developer_text)
         developer.setOpenExternalLinks(True)
         developer.setWordWrap(True)
         layout.addWidget(developer)
         
-        link_style = "style='color:#2ECC71; text-decoration:none;'"
-        hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
-                    "onmouseout=\"this.style.color='#2ECC71'; this.style.textDecoration='none'\""
-
-        beta_testers = QLabel(f"""
+        # CORREGIDO: Textos traducibles envueltos en self.tr()
+        beta_testers_text = self.tr("""
             <b>Beta Testers:</b><br>
-            Guysho2112 - <a href='https://xn--deepinenespaol-1nb.org/participant/Guysho2112/' {link_style} {hover_style}>deepines.com/participant/Guysho2112/</a>
-        """)
+            Guysho2112 - <a href='https://xn--deepinenespaol-1nb.org/participant/Guysho2112/' {0} {1}>deepines.com/participant/Guysho2112/</a>
+        """).format(link_style, hover_style)
+        
+        beta_testers = QLabel(beta_testers_text)
         beta_testers.setOpenExternalLinks(True)
         beta_testers.setWordWrap(True)
         layout.addWidget(beta_testers)
 
-        community = QLabel(f"""
+        # CORREGIDO: Textos traducibles envueltos en self.tr()
+        community_text = self.tr("""
             <b>Comunidad deepin en español:</b><br>
-            <a href='https://xn--deepinenespaol-1nb.org' {link_style} {hover_style}>www.deepines.com</a>
-        """)
+            <a href='https://xn--deepinenespaol-1nb.org' {0} {1}>www.deepines.com</a>
+        """).format(link_style, hover_style)
+        
+        community = QLabel(community_text)
         community.setOpenExternalLinks(True)
         community.setWordWrap(True)
         layout.addWidget(community)
         
-        repo = QLabel(f"""
+        # CORREGIDO: Textos traducibles envueltos en self.tr()
+        repo_text = self.tr("""
             <b>Repositorio:</b><br>
-            <a href='https://github.com/krafairus/immutable-deepin-tools' {link_style} {hover_style}>https://github.com/krafairus/immutable-deepin-tools</a>
-        """)
+            <a href='https://github.com/krafairus/immutable-deepin-tools' {0} {1}>https://github.com/krafairus/immutable-deepin-tools</a>
+        """).format(link_style, hover_style)
+        
+        repo = QLabel(repo_text)
         repo.setOpenExternalLinks(True)
         repo.setWordWrap(True)
         layout.addWidget(repo)
@@ -1475,21 +1709,21 @@ class MainWindow(RoundedWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        status_group = QGroupBox("Estado Actual del Sistema Inmutable")
+        status_group = QGroupBox(self.tr("Estado Actual del Sistema Inmutable"))
         status_group_layout = QVBoxLayout(status_group)
-        self.status_label = QLabel("Cargando estado...")
+        self.status_label = QLabel(self.tr("Cargando estado..."))
         self.status_label.setObjectName("status_label")
         self.status_label.setAlignment(Qt.AlignCenter)
         status_group_layout.addWidget(self.status_label)
 
-        btn_check_status = QPushButton("Actualizar Estado")
+        btn_check_status = QPushButton(self.tr("Actualizar Estado"))
         btn_check_status.clicked.connect(self.check_immutable_status)
         status_group_layout.addWidget(btn_check_status, alignment=Qt.AlignCenter)
 
         status_group_layout.addWidget(self.create_separator())
 
         immutable_toggle_layout = QHBoxLayout()
-        self.btn_disable_immutable = QPushButton("Desactivar Inmutabilidad")
+        self.btn_disable_immutable = QPushButton(self.tr("Desactivar Inmutabilidad"))
         self.btn_disable_immutable.setStyleSheet("""
             QPushButton { background-color: #E74C3C; color: white; }
             QPushButton:hover { background-color: #C0392B; }
@@ -1499,7 +1733,7 @@ class MainWindow(RoundedWindow):
         self.btn_disable_immutable.clicked.connect(self.disable_immutable_mode)
         immutable_toggle_layout.addWidget(self.btn_disable_immutable)
 
-        self.btn_enable_immutable = QPushButton("Activar Inmutabilidad")
+        self.btn_enable_immutable = QPushButton(self.tr("Activar Inmutabilidad"))
         self.btn_enable_immutable.setStyleSheet("""
             QPushButton { background-color: #2ECC71; color: white; }
             QPushButton:hover { background-color: #27AE60; }
@@ -1511,12 +1745,12 @@ class MainWindow(RoundedWindow):
 
         status_group_layout.addLayout(immutable_toggle_layout)
 
-        immutable_info_label = QLabel(
+        immutable_info_label = QLabel(self.tr(
             "Al desactivar la inmutabilidad, el directorio `/usr` se vuelve escribible, permitiendo la instalación de software y modificaciones directas en el sistema base. "
             "Esto es útil para desarrolladores o usuarios avanzados, pero reduce la seguridad y estabilidad del sistema inmutable."
             "<br><br>"
             "Al activar la inmutabilidad, `/usr` vuelve a ser de solo lectura, protegiendo el sistema base de cambios no deseados."
-        )
+        ))
         immutable_info_label.setWordWrap(True)
         status_group_layout.addWidget(immutable_info_label)
 
@@ -1539,12 +1773,12 @@ class MainWindow(RoundedWindow):
                 self.content_stack.addWidget(admin_tab)
             else:
                 print(f"Advertencia: No se encontró el módulo admin.py en {admin_path}")
-                placeholder = QLabel("Módulo de administración no encontrado")
+                placeholder = QLabel(self.tr("Módulo de administración no encontrado"))
                 placeholder.setAlignment(Qt.AlignCenter)
                 self.content_stack.addWidget(placeholder)
         except Exception as e:
             print(f"Error al cargar el módulo de administración: {str(e)}")
-            error_widget = QLabel(f"Error al cargar la administración:\n{str(e)}")
+            error_widget = QLabel(self.tr(f"Error al cargar la administración:\n{str(e)}"))
             error_widget.setAlignment(Qt.AlignCenter)
             self.content_stack.addWidget(error_widget)
 
@@ -1558,15 +1792,16 @@ class MainWindow(RoundedWindow):
                 spec.loader.exec_module(snapshots_module)
                 
                 snapshots_tab = snapshots_module.SnapshotsTab(self.controller, self)
-                self.content_stack.addWidget(snapshots_tab)  
+                self.snapshots_tab = snapshots_tab  # Guarda la referencia
+                self.content_stack.addWidget(snapshots_tab)
             else:
                 print(f"Advertencia: No se encontró el módulo snapshots.py en {snapshots_path}")
-                placeholder = QLabel("Módulo de Snapshots no encontrado")
+                placeholder = QLabel(self.tr("Módulo de Snapshots no encontrado"))
                 placeholder.setAlignment(Qt.AlignCenter)
                 self.content_stack.addWidget(placeholder)
         except Exception as e:
             print(f"Error al cargar el módulo de Snapshots: {str(e)}")
-            error_widget = QLabel(f"Error al cargar Snapshots:\n{str(e)}")
+            error_widget = QLabel(self.tr(f"Error al cargar Snapshots:\n{str(e)}"))
             error_widget.setAlignment(Qt.AlignCenter)
             self.content_stack.addWidget(error_widget)
 
@@ -1583,6 +1818,10 @@ class MainWindow(RoundedWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
+    # Configurar internacionalización
+    current_language = setup_translator(app)
+    
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
