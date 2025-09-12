@@ -21,17 +21,17 @@ pyinstaller --onefile --windowed --add-data "resources:resources" --hidden-impor
 Compile Deb package:
 1. Create release file.
 
-dch --create -D stable --package "immutable-deepin-tools" --newversion=1.x.x "New release."
+- dch --create -D stable --package "immutable-deepin-tools" --newversion=1.x.x "New release."
 
 2. Compilation Dependencies:
 
-sudo apt build-dep .
+- sudo apt build-dep .
 
 3. Compile Package:
 
-dpkg-buildpackage -Zxz -rfakeroot -b
+- dpkg-buildpackage -Zxz -rfakeroot -b
 
 
 ### Warning: The quality of this product is not guaranteed. If you encounter any problems, please report them.
 
-Using the MIT license.
+# Using the MIT license.
