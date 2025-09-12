@@ -16,7 +16,7 @@ Unofficial application for manipulating the immutability of Deepin Linux 25.
  -   English
 
 Compile binary:
-pyinstaller --onefile --windowed --add-data "resources:resources" --hidden-import "PySide6.QtCore" --hidden-import "PySide6.QtGui" --hidden-import "PySide6.QtWidgets" main.py
+- pyinstaller --onefile --windowed --add-data "resources:resources" --hidden-import "PySide6.QtCore" --hidden-import "PySide6.QtGui" --hidden-import "PySide6.QtWidgets" main.py
 
 Compile Deb package:
 1. Create release file.
