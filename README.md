@@ -1,4 +1,4 @@
-# immutable-deepin-tools
+# Immutable Deepin Tools
 Unofficial application for manipulating the immutability of Deepin Linux 25.
 
 <img width="1012" height="648" alt="imagen" src="https://github.com/user-attachments/assets/523a270e-bf39-4db1-b1af-285616a327cc" />
