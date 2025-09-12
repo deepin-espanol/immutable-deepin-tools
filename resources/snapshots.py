@@ -26,14 +26,12 @@ class SnapshotsTab(QWidget):
         snapshot_main_layout.setContentsMargins(20, 20, 20, 20)
         snapshot_main_layout.setSpacing(15)
 
-        # Lista de snapshots
         snapshot_list_container = QGroupBox(self.tr("Gestión de Snapshots"))
         snapshot_list_layout = QVBoxLayout(snapshot_list_container)
 
         self.snapshot_list = QListWidget()
         snapshot_list_layout.addWidget(self.snapshot_list)
 
-        # Botones de acciones
         snapshot_action_buttons_layout = QHBoxLayout()
         snapshot_action_buttons_layout.setSpacing(10)
 
@@ -46,7 +44,6 @@ class SnapshotsTab(QWidget):
         self.btn_delete.setEnabled(False)
         snapshot_action_buttons_layout.addWidget(self.btn_delete)
 
-        # Configurar botón mostrar con icono (usando QPixmap)
         self.btn_show = QPushButton()
         self.btn_show.setObjectName("btn_show_snapshot")
         self.btn_show.setToolTip(self.tr("Mostrar Información del Snapshot"))
@@ -67,7 +64,6 @@ class SnapshotsTab(QWidget):
         
         snapshot_action_buttons_layout.addWidget(self.btn_show)
 
-        # Configurar botón modificar con icono (usando QPixmap)
         self.btn_modify = QPushButton()
         self.btn_modify.setObjectName("btn_modify_snapshot")
         self.btn_modify.setToolTip(self.tr("Modificar Snapshot"))
@@ -87,7 +83,6 @@ class SnapshotsTab(QWidget):
         
         snapshot_action_buttons_layout.addWidget(self.btn_modify)
 
-        # Configurar botón refrescar con icono (usando QPixmap)
         self.btn_refresh = QPushButton()
         self.btn_refresh.setObjectName("btn_refresh_list")
         self.btn_refresh.setToolTip(self.tr("Refrescar Lista de Snapshots"))
@@ -106,7 +101,6 @@ class SnapshotsTab(QWidget):
         
         snapshot_action_buttons_layout.addWidget(self.btn_refresh)
 
-        # Estilos CSS (sin cambios ya que no contienen texto)
         self.btn_delete.setStyleSheet("""
             QPushButton:hover {
                 background-color: #1d8dd8;
@@ -269,21 +263,21 @@ class SnapshotsTab(QWidget):
         
         layout = QVBoxLayout(dialog)
         
-        # Campo para el nombre
+        # nombre
         name_label = QLabel(self.tr("Introduce un nombre para el snapshot (opcional):"))
         layout.addWidget(name_label)
         
         name_edit = QLineEdit()
         layout.addWidget(name_edit)
         
-        # Campo para la descripción
+        # descripcion
         desc_label = QLabel(self.tr("Introduce una descripción (opcional):"))
         layout.addWidget(desc_label)
         
         desc_edit = QLineEdit()
         layout.addWidget(desc_edit)
         
-        # Botones - con layout horizontal para separarlos
+        # layout horizontal para separarlos
         button_container = QWidget()
         button_layout = QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 0, 0, 0)
@@ -292,12 +286,11 @@ class SnapshotsTab(QWidget):
         create_button = QPushButton(self.tr("Crear"))
         
         button_layout.addWidget(cancel_button, 0, Qt.AlignLeft)
-        button_layout.addStretch(1)  # Espaciador para separar los botones
+        button_layout.addStretch(1)  
         button_layout.addWidget(create_button, 0, Qt.AlignRight)
         
         layout.addWidget(button_container)
         
-        # Conectar señales
         def create_snapshot():
             name = name_edit.text().strip()
             description = desc_edit.text().strip()
@@ -332,27 +325,25 @@ class SnapshotsTab(QWidget):
         
         layout = QVBoxLayout(dialog)
         
-        # Campo para el nombre
+        # nombre
         name_label = QLabel(self.tr("Nuevo nombre para {} (dejar en blanco para no cambiar):").format(snapshot_id))
         layout.addWidget(name_label)
         
         name_edit = QLineEdit()
         layout.addWidget(name_edit)
         
-        # Campo para la descripción
+        # descripcion
         desc_label = QLabel(self.tr("Nueva descripción para {}:").format(snapshot_id))
         layout.addWidget(desc_label)
         
         desc_edit = QLineEdit()
         layout.addWidget(desc_edit)
         
-        # Botones
         button_box = QDialogButtonBox()
         ok_button = button_box.addButton(self.tr("Modificar"), QDialogButtonBox.AcceptRole)
         cancel_button = button_box.addButton(self.tr("Cancelar"), QDialogButtonBox.RejectRole)
         layout.addWidget(button_box)
         
-        # Conectar señales
         def modify_snapshot():
             name = name_edit.text().strip()
             description = desc_edit.text().strip()
