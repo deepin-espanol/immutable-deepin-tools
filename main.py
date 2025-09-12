@@ -71,7 +71,7 @@ class ConfigManager:
                     return json.load(f)
             except Exception as e:
                 print(f"Error loading config: {e}")
-        return {"dark_mode": True, "language": "system"}  # Valores por defecto
+        return {"dark_mode": True, "language": "system"}  
 
     @staticmethod
     def save_config(config):
@@ -941,7 +941,6 @@ class CustomTitleBar(QWidget):
         self.title.setObjectName("title_label")
         layout.addWidget(self.title, 1, Qt.AlignLeft | Qt.AlignVCenter)
 
-        # Botón para cambiar idioma - CON ICONO PERSONALIZADO
         self.language_button = QPushButton()
         self.language_button.setObjectName("window_button")
         self.language_button.setFixedSize(24, 24)
@@ -1066,7 +1065,7 @@ class ConsoleOutputDialog(QDialog):
         
         self.requires_reboot = False
         self.current_command = ""
-        self.controller = controller  # Guardamos la referencia al controlador
+        self.controller = controller  
         
         layout = QVBoxLayout(self)
         
@@ -1104,11 +1103,10 @@ class ConsoleOutputDialog(QDialog):
         self.output_area.clear()
 
     def append_output(self, text):
-        if text == "":  # Señal especial para limpiar la consola
+        if text == "": 
             self.clear_output()
             return
             
-        # Resto del método original
         self.output_area.append(text)
         cursor = self.output_area.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -1153,7 +1151,7 @@ class ImmutableController(QObject):
     def execute_command(self, command, show_in_console=True, env=None):
         try:
             if show_in_console:
-                self.commandOutput.emit("")  # Señal especial para limpiar
+                self.commandOutput.emit("")  
                 self.commandOutput.emit(f"$ {command}\n")
                 self.commandOutput.emit("="*80 + "\n")
 
@@ -1175,7 +1173,6 @@ class ImmutableController(QObject):
                 full_command = command
 
             if not show_in_console:
-                # Usar el entorno proporcionado o el actual
                 process_env = os.environ.copy()
                 if env:
                     process_env.update(env)
@@ -1195,7 +1192,6 @@ class ImmutableController(QObject):
             self.process.readyReadStandardError.connect(self.handle_stderr)
             self.process.finished.connect(self.handle_finished)
             
-            # Configurar el entorno si se proporciona
             if env:
                 process_env = self.process.processEnvironment()
                 for key, value in env.items():
@@ -1243,7 +1239,6 @@ class LanguageDialog(QDialog):
         self.language_combo.addItem("Português", "pt")
         self.language_combo.addItem("Chinese", "zh_CN")
 
-        # Aplicar estilo al combobox
         self.language_combo.setStyleSheet("""
             QComboBox {
                 border: 1px solid #444444;
@@ -1296,7 +1291,6 @@ class LanguageDialog(QDialog):
             }
         """)
         
-        # Establecer el idioma actual
         config = ConfigManager.load_config()
         current_language = config.get("language", "system")
         index = self.language_combo.findData(current_language)
@@ -1305,27 +1299,22 @@ class LanguageDialog(QDialog):
             
         layout.addWidget(self.language_combo)
         
-        # Crear un widget contenedor para los botones
         button_container = QWidget()
         button_layout = QHBoxLayout(button_container)
         button_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Botón Cancelar a la izquierda
         self.cancel_button = QPushButton(self.tr("Cancelar"))
         self.cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(self.cancel_button, 0, Qt.AlignLeft)
         
-        # Espaciador para separar los botones
         button_layout.addStretch(1)
         
-        # Botón Aceptar a la derecha
         self.ok_button = QPushButton(self.tr("Aceptar"))
         self.ok_button.clicked.connect(self.accept)
         button_layout.addWidget(self.ok_button, 0, Qt.AlignRight)
         
         layout.addWidget(button_container)
         
-        # Aplicar estilo a los botones
         button_style = """
             QPushButton {
                 background-color: #2ca7f8;
@@ -1350,7 +1339,6 @@ class LanguageDialog(QDialog):
                                             .replace("#1d8dd8", "#C0392B")
                                             .replace("#0a70b9", "#A93226"))
         
-        # Aplicar el estilo de la aplicación al diálogo
         self.setStyleSheet(QApplication.instance().styleSheet())
 
     def selected_language(self):
@@ -1364,7 +1352,6 @@ class MainWindow(RoundedWindow):
 
         self.snapshots_tab = None
 
-        # Cargar configuración
         config = ConfigManager.load_config()
         self.dark_mode = config.get("dark_mode", True)
         
@@ -1417,7 +1404,6 @@ class MainWindow(RoundedWindow):
             config["language"] = new_language
             ConfigManager.save_config(config)
             
-            # Mostrar mensaje de que se necesita reiniciar la aplicación
             QMessageBox.information(
                 self, 
                 self.tr("Idioma cambiado"), 
@@ -1528,9 +1514,7 @@ class MainWindow(RoundedWindow):
             else:
                 output = self.controller.execute_command(command, show_in_console=False)
                 
-            # Modifica esta parte para verificar si es un comando de snapshot
             if "snapshot" in command:
-                # Llama al refresh_snapshots de la pestaña de snapshots si existe
                 if hasattr(self, 'snapshots_tab') and self.snapshots_tab is not None:
                     self.snapshots_tab.refresh_snapshots()
             elif "immutable-status" not in command and ("deploy" in command or "rollback" in command):
@@ -1547,7 +1531,6 @@ class MainWindow(RoundedWindow):
         self.nav_list.setObjectName("nav_list")
         self.nav_list.setFixedWidth(200)
         
-        # Usar identificadores únicos en lugar de texto
         self.add_nav_item("status", "status.png")
         self.add_nav_item("admin", "admin.png")
         self.add_nav_item("snapshots", "snapshot.png")
@@ -1566,7 +1549,6 @@ class MainWindow(RoundedWindow):
         self.nav_list.currentRowChanged.connect(self.content_stack.setCurrentIndex)
 
     def add_nav_item(self, text_id, icon_name):
-        # text_id es un identificador único para cada item
         translations = {
             "status": self.tr("Estado"),
             "admin": self.tr("Administración"),
@@ -1651,12 +1633,10 @@ class MainWindow(RoundedWindow):
         
         layout.addWidget(self.create_separator())
         
-        # Definir el estilo verde para los enlaces
         link_style = "style='color:#2ECC71; text-decoration:none;'"
         hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
                     "onmouseout=\"this.style.color='#2ECC71'; this.style.textDecoration='none'\""
 
-        # CORREGIDO: Textos traducibles envueltos en self.tr()
         developer_text = self.tr("""
             <b>Desarrollador:</b><br>
             krafairus - <a href='https://xn--deepinenespaol-1nb.org/participant/krafairus' {0} {1}>deepines.com/participant/krafairus</a>
@@ -1667,7 +1647,6 @@ class MainWindow(RoundedWindow):
         developer.setWordWrap(True)
         layout.addWidget(developer)
         
-        # CORREGIDO: Textos traducibles envueltos en self.tr()
         beta_testers_text = self.tr("""
             <b>Beta Testers:</b><br>
             Guysho2112 - <a href='https://xn--deepinenespaol-1nb.org/participant/Guysho2112/' {0} {1}>deepines.com/participant/Guysho2112/</a>
@@ -1678,7 +1657,6 @@ class MainWindow(RoundedWindow):
         beta_testers.setWordWrap(True)
         layout.addWidget(beta_testers)
 
-        # CORREGIDO: Textos traducibles envueltos en self.tr()
         community_text = self.tr("""
             <b>Comunidad deepin en español:</b><br>
             <a href='https://xn--deepinenespaol-1nb.org' {0} {1}>www.deepines.com</a>
@@ -1689,7 +1667,6 @@ class MainWindow(RoundedWindow):
         community.setWordWrap(True)
         layout.addWidget(community)
         
-        # CORREGIDO: Textos traducibles envueltos en self.tr()
         repo_text = self.tr("""
             <b>Repositorio:</b><br>
             <a href='https://github.com/krafairus/immutable-deepin-tools' {0} {1}>https://github.com/krafairus/immutable-deepin-tools</a>
@@ -1819,7 +1796,7 @@ class MainWindow(RoundedWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
-    # Configurar internacionalización
+    # Configurar idiomas
     current_language = setup_translator(app)
     
     window = MainWindow()
