@@ -14,10 +14,8 @@ class AdminTab(QWidget):
         self.controller = controller
         self.parent = parent
         
-        # Creamos el stacked widget para manejar las vistas
         self.stacked_widget = QStackedWidget()
         
-        # Creamos los widgets como atributos de clase
         self.main_widget = None
         self.command_widget = None
         self.file_op_widget = None
@@ -37,16 +35,12 @@ class AdminTab(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.stacked_widget)
         
-        # Configurar el widget principal
         self.setup_main_widget()
         
-        # Configurar el widget de comandos
         self.setup_command_widget()
         
-        # Configurar el widget de operaciones de archivos
         self.setup_file_op_widget()
         
-        # Mostrar el widget principal por defecto
         self.stacked_widget.setCurrentWidget(self.main_widget)
 
     def setup_main_widget(self):
@@ -56,7 +50,6 @@ class AdminTab(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # Sección superior: Botones principales
         top_buttons_layout = QHBoxLayout()
         top_buttons_layout.setSpacing(15)
         
@@ -80,11 +73,9 @@ class AdminTab(QWidget):
         
         layout.addLayout(top_buttons_layout)
 
-        # Sección media: Acciones de despliegue
         deploy_group = QGroupBox(self.tr("Opciones de Despliegue"))
         deploy_layout = QGridLayout(deploy_group)
         
-        # Botones de despliegue con nuevo diseño
         self.btn_deploy = self.create_small_button(self.tr("Desplegar"), "deploy-save", "#f39c12")
         self.btn_finalize = self.create_small_button(self.tr("Finalizar"), "deploy-finalize", "#e74c3c")
         self.btn_rollback = self.create_small_button(self.tr("Revertir"), "deploy-rollback", "#9b59b6")
@@ -93,7 +84,6 @@ class AdminTab(QWidget):
         deploy_layout.addWidget(self.btn_finalize, 0, 1)
         deploy_layout.addWidget(self.btn_rollback, 0, 2)
         
-        # Configuración responsive
         deploy_layout.setHorizontalSpacing(10)
         deploy_layout.setVerticalSpacing(10)
         deploy_layout.setContentsMargins(15, 25, 15, 15)
@@ -112,7 +102,6 @@ class AdminTab(QWidget):
         layout = QVBoxLayout(self.command_widget)
         layout.setContentsMargins(20, 20, 20, 20)
             
-        # Botón de volver con icono PNG desde resources
         btn_back = QPushButton()
         btn_back_layout = QHBoxLayout(btn_back)
         btn_back_layout.setContentsMargins(5, 5, 10, 5)
@@ -126,7 +115,7 @@ class AdminTab(QWidget):
             icon_label.setPixmap(icon_pixmap)
             btn_back_layout.addWidget(icon_label)
         else:
-            # Fallback a icono del sistema si no existe el PNG
+            # Fallback
             icon_label = QLabel()
             icon_label.setPixmap(QIcon.fromTheme("go-previous").pixmap(16, 16))
             btn_back_layout.addWidget(icon_label)
@@ -173,7 +162,6 @@ lo que permite realizar cambios temporales en el sistema inmutable.
         description.setWordWrap(True)
         layout.addWidget(description)
         
-        # Título
         title = QLabel(self.tr("Ejecutar Comando (admin)"))
         title.setStyleSheet("""
             QLabel {
@@ -184,7 +172,6 @@ lo que permite realizar cambios temporales en el sistema inmutable.
         """)
         layout.addWidget(title, alignment=Qt.AlignCenter)
         
-        # Contenedor horizontal para el campo de entrada y el botón
         input_container = QHBoxLayout()
         input_container.setSpacing(10)
         
@@ -193,16 +180,13 @@ lo que permite realizar cambios temporales en el sistema inmutable.
         self.cmd_input.setPlaceholderText(self.tr("Ingresa el comando ej: apt update && apt upgrade -y"))
         input_container.addWidget(self.cmd_input, stretch=1)  # El campo de entrada ocupa todo el espacio disponible
         
-        # Botón de ejecución con icono y texto
         btn_execute = QPushButton()
-        btn_execute.setMinimumWidth(120)  # Ancho mínimo para el botón
+        btn_execute.setMinimumWidth(120)  
         
-        # Layout interno para el botón (icono + texto)
         btn_layout = QHBoxLayout(btn_execute)
         btn_layout.setContentsMargins(10, 5, 10, 5)
         btn_layout.setSpacing(8)
         
-        # Icono de ejecución
         execute_icon = QLabel()
         icon_size = 16
         icon_path = os.path.join(self.parent.current_dir, "resources", "run-command.png")
@@ -212,12 +196,10 @@ lo que permite realizar cambios temporales en el sistema inmutable.
             execute_icon.setPixmap(QIcon.fromTheme("system-run").pixmap(icon_size, icon_size))
         btn_layout.addWidget(execute_icon)
         
-        # Texto del botón
         execute_text = QLabel(self.tr("Ejecutar"))
         execute_text.setStyleSheet("font-weight: bold;")
         btn_layout.addWidget(execute_text)
         
-        # Estilo del botón
         btn_execute.setStyleSheet("""
             QPushButton {
                 min-width: 55px;
@@ -235,7 +217,6 @@ lo que permite realizar cambios temporales en el sistema inmutable.
         input_container.addWidget(btn_execute)
         layout.addLayout(input_container)
 
-        # Sección de comandos comunes
         common_commands_group = QGroupBox(self.tr("Comandos comunes"))
         common_commands_layout = QGridLayout(common_commands_group)
         
@@ -269,7 +250,6 @@ lo que permite realizar cambios temporales en el sistema inmutable.
         layout = QVBoxLayout(self.file_op_widget)
         layout.setContentsMargins(20, 20, 20, 20)
         
-        # Botón de volver (igual que antes)
         btn_back = QPushButton()
         btn_back_layout = QHBoxLayout(btn_back)
         btn_back_layout.setContentsMargins(5, 5, 10, 5)
@@ -338,25 +318,20 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         """)
         layout.addWidget(title, alignment=Qt.AlignCenter)
         
-        # Contenedor horizontal para el campo de entrada y el botón
         input_container = QHBoxLayout()
         input_container.setSpacing(10)
         
-        # Campo de entrada para la operación
         self.file_op_input = QLineEdit()
         self.file_op_input.setPlaceholderText(self.tr("Ingrese la operación de archivo (ej: setxattr /ruta/al/archivo user.key=value)"))
-        input_container.addWidget(self.file_op_input, stretch=1)  # El campo de entrada ocupa todo el espacio disponible
+        input_container.addWidget(self.file_op_input, stretch=1) 
         
-        # Botón de ejecución con icono y texto (igual que en comandos)
         btn_execute = QPushButton()
-        btn_execute.setMinimumWidth(120)  # Ancho mínimo para el botón
+        btn_execute.setMinimumWidth(120)  
         
-        # Layout interno para el botón (icono + texto)
         btn_layout = QHBoxLayout(btn_execute)
         btn_layout.setContentsMargins(10, 5, 10, 5)
         btn_layout.setSpacing(8)
         
-        # Icono de ejecución
         execute_icon = QLabel()
         icon_size = 16
         icon_path = os.path.join(self.parent.current_dir, "resources", "run-command.png")
@@ -366,12 +341,10 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
             execute_icon.setPixmap(QIcon.fromTheme("system-run").pixmap(icon_size, icon_size))
         btn_layout.addWidget(execute_icon)
         
-        # Texto del botón
         execute_text = QLabel(self.tr("Ejecutar"))
         execute_text.setStyleSheet("font-weight: bold;")
         btn_layout.addWidget(execute_text)
         
-        # Estilo del botón (igual que en comandos)
         btn_execute.setStyleSheet("""
             QPushButton {
                 min-width: 55px;
@@ -441,16 +414,13 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         btn.setToolTip(tooltip)
         
-        # Layout interno vertical
         layout = QVBoxLayout(btn)
         layout.setContentsMargins(10, 15, 10, 10)
         layout.setSpacing(8)
         
-        # Icono
         icon_label = QLabel()
-        icon_size = 48  # Tamaño del icono
+        icon_size = 48  
         
-        # Buscar icono en recursos primero
         icon_path = os.path.join(self.parent.current_dir, "resources", f"{icon_name}.png")
         if os.path.exists(icon_path):
             icon_label.setPixmap(QIcon(icon_path).pixmap(icon_size, icon_size))
@@ -460,7 +430,6 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         icon_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon_label)
         
-        # Texto principal
         title_label = QLabel(text)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet(f"""
@@ -473,7 +442,6 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         """)
         layout.addWidget(title_label)
         
-        # Descripción
         desc_label = QLabel(tooltip)
         desc_label.setAlignment(Qt.AlignCenter)
         desc_label.setWordWrap(True)
@@ -486,7 +454,6 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         """)
         layout.addWidget(desc_label)
         
-        # Estilo del botón
         btn.setStyleSheet(f"""
             QPushButton {{
                 border: 2px solid {color};
@@ -508,19 +475,16 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
     def create_small_button(self, text, icon_name, color):
         """Crea un botón con icono, texto y descripción para las opciones de deploy"""
         btn = QPushButton()
-        btn.setMinimumHeight(80)  # Aumentamos la altura para acomodar más contenido
+        btn.setMinimumHeight(80)  
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         
-        # Layout interno vertical
         layout = QVBoxLayout(btn)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5)
         
-        # Icono
         icon_label = QLabel()
-        icon_size = 24  # Tamaño del icono más pequeño que en los botones grandes
+        icon_size = 24 
         
-        # Buscar icono en recursos
         icon_path = os.path.join(self.parent.current_dir, "resources", f"{icon_name}.png")
         if os.path.exists(icon_path):
             icon_label.setPixmap(QIcon(icon_path).pixmap(icon_size, icon_size))
@@ -530,7 +494,6 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         icon_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon_label)
         
-        # Texto principal
         title_label = QLabel(text)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet(f"""
@@ -543,7 +506,6 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         """)
         layout.addWidget(title_label)
         
-        # Descripción (diferente según el botón)
         desc_text = ""
         if text == self.tr("Desplegar"):
             desc_text = self.tr("Crear nueva versión con cambios")
@@ -564,7 +526,6 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
         """)
         layout.addWidget(desc_label)
         
-        # Estilo del botón
         btn.setStyleSheet(f"""
             QPushButton {{
                 border: 1px solid {color};
@@ -589,7 +550,7 @@ Advertencia: Estas operaciones afectan directamente al sistema de archivos.""")
 
     def show_command_view(self):
         """Muestra la vista de comandos"""
-        self.cmd_input.clear()  # Limpiamos el campo de comando
+        self.cmd_input.clear() 
         self.stacked_widget.setCurrentWidget(self.command_widget)
 
     def show_file_op_view(self):
@@ -681,7 +642,6 @@ Seleccione las opciones adicionales:""")
         layout.addWidget(self.refresh_check)
         layout.addWidget(self.append_check)
         
-        # Botones
         btn_box = QHBoxLayout()
         btn_ok = QPushButton(self.tr("Desplegar"))
         btn_ok.clicked.connect(lambda: self.execute_deploy(dialog))
