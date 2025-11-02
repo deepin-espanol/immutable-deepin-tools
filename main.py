@@ -9,7 +9,8 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                               QTabWidget, QGroupBox, QPushButton, QLabel, QTextEdit,
                               QMessageBox, QListWidget, QDialog, QFormLayout, QLineEdit,
                               QFrame, QSizePolicy, QMenu, QGraphicsDropShadowEffect, QInputDialog,
-                              QStackedWidget, QGridLayout, QListWidgetItem, QComboBox, QDialogButtonBox)
+                              QStackedWidget, QGridLayout, QListWidgetItem, QComboBox, QDialogButtonBox,
+                              QProgressBar)
 from PySide6.QtGui import QIcon, QColor, QPalette, QPainter, QRegion, QCursor, QPainterPath, QDesktopServices, QTextCursor
 from PySide6.QtCore import Qt, Signal, QObject, QPoint, QSize, QRect, QDir, QUrl, QTimer, QProcess, QTranslator, QLibraryInfo
 
@@ -71,7 +72,7 @@ class ConfigManager:
                     return json.load(f)
             except Exception as e:
                 print(f"Error loading config: {e}")
-        return {"dark_mode": True, "language": "system"}  
+        return {"dark_mode": True, "language": "system"}  # Valores por defecto
 
     @staticmethod
     def save_config(config):
@@ -336,6 +337,20 @@ class ThemeManager:
         QLabel a:hover {
             color: #0081FF;
         }
+        
+        /* Barra de Progreso */
+        QProgressBar {
+            border: 1px solid #444444;
+            border-radius: 6px;
+            background-color: #2D2D2D;
+            text-align: center;
+            color: #BEBEBE;
+            height: 25px;
+        }
+        QProgressBar::chunk {
+            background-color: #0081FF;
+            border-radius: 5px;
+        }
 
         /* Diálogos (Pop-ups) */
         QDialog {
@@ -505,7 +520,7 @@ class ThemeManager:
 
         /* Barra de título principal (Customizada) */
 
-    /* Botones de la barra de título en tema claro */
+        /* Botones de la barra de título en tema claro */
         #window_button {
             color: #333333;
         }
@@ -526,7 +541,7 @@ class ThemeManager:
 
         /* Barra de título principal */
         #title_bar {
-            background-color: #FFFFFF;
+            background-color: #F0F0F0;
             border-bottom: 1px solid #DDDDDD;
             border-top-left-radius: 8px;
             border-top-right-radius: 8px;
@@ -763,6 +778,20 @@ class ThemeManager:
         QLabel a:hover {
             color: #1d8dd8;
         }
+        
+        /* Barra de Progreso */
+        QProgressBar {
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            background-color: #FFFFFF;
+            text-align: center;
+            color: #333333;
+            height: 25px;
+        }
+        QProgressBar::chunk {
+            background-color: #2ca7f8;
+            border-radius: 5px;
+        }
 
         /* Diálogos (Pop-ups) */
         QDialog {
@@ -941,6 +970,7 @@ class CustomTitleBar(QWidget):
         self.title.setObjectName("title_label")
         layout.addWidget(self.title, 1, Qt.AlignLeft | Qt.AlignVCenter)
 
+        # Botón para cambiar idioma - CON ICONO PERSONALIZADO
         self.language_button = QPushButton()
         self.language_button.setObjectName("window_button")
         self.language_button.setFixedSize(24, 24)
@@ -1059,15 +1089,28 @@ class RoundedWindow(QMainWindow):
 class ConsoleOutputDialog(QDialog):
     def __init__(self, parent=None, title_text=None, controller=None):
         super().__init__(parent)
+        
+        self.main_window = parent 
+        
         title_text = title_text or self.tr("Salida de Comandos")
         self.setWindowTitle(title_text)
         self.setFixedSize(600, 500)  
         
         self.requires_reboot = False
         self.current_command = ""
-        self.controller = controller  
+        self.controller = controller
+        self.exit_code = 0
+        self.output_text = ""
         
         layout = QVBoxLayout(self)
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setFormat(self.tr("Ejecutando tarea..."))
+        self.progress_bar.setAlignment(Qt.AlignCenter)
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
         
         self.output_area = QTextEdit()
         self.output_area.setReadOnly(True)
@@ -1078,6 +1121,16 @@ class ConsoleOutputDialog(QDialog):
         self.button_box = QWidget()
         self.button_layout = QHBoxLayout(self.button_box)
         self.button_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.cancel_button = QPushButton(self.tr("Forzar Cancelación"))
+        self.cancel_button.setStyleSheet("""
+            QPushButton { background-color: #E74C3C; color: white; }
+            QPushButton:hover { background-color: #C0392B; }
+            QPushButton:pressed { background-color: #A93226; }
+        """)
+        self.cancel_button.clicked.connect(self.prompt_cancel)
+        self.cancel_button.hide()
+        self.button_layout.addWidget(self.cancel_button)
         
         self.close_button = QPushButton(self.tr("Cerrar"))
         self.close_button.setObjectName("close_button")
@@ -1099,14 +1152,66 @@ class ConsoleOutputDialog(QDialog):
         
         layout.addWidget(self.button_box)
 
+    def command_started(self, command):
+        self.clear_output()
+        self.progress_bar.show()
+        self.cancel_button.show()
+        
+        self.close_button.hide()
+        self.reboot_now_button.hide()
+        self.reboot_later_button.hide()
+        
+        self.current_command = command
+        self.output_text = ""
+        self.requires_reboot = False
+        
+    def prompt_cancel(self):
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(self.tr("Confirmar Cancelación"))
+        msg_box.setText(self.tr("¿Está seguro que desea forzar la cancelación del proceso en curso?"))
+        
+        force_button = msg_box.addButton(self.tr("Forzar"), QMessageBox.ButtonRole.DestructiveRole)
+        back_button = msg_box.addButton(self.tr("Volver"), QMessageBox.ButtonRole.RejectRole)
+        msg_box.setDefaultButton(back_button)
+        
+        force_button.setStyleSheet("""
+            QPushButton { background-color: #E74C3C; color: white; border-radius: 8px; padding: 10px 20px; min-width: 100px; }
+            QPushButton:hover { background-color: #C0392B; }
+            QPushButton:pressed { background-color: #A93226; }
+        """)
+        
+        current_style = QApplication.instance().styleSheet()
+        if "background-color: #F5F5F5" in current_style: 
+            back_button.setStyleSheet("""
+                QPushButton { background-color: #2ca7f8; color: white; border-radius: 8px; padding: 10px 20px; min-width: 100px; }
+                QPushButton:hover { background-color: #1d8dd8; }
+                QPushButton:pressed { background-color: #0a70b9; }
+            """)
+        else:
+             back_button.setStyleSheet("""
+                QPushButton { background-color: #2ca7f8; color: white; border-radius: 8px; padding: 10px 20px; min-width: 100px; }
+                QPushButton:hover { background-color: #1d8dd8; }
+                QPushButton:pressed { background-color: #0a70b9; }
+            """)
+
+        msg_box.exec()
+        
+        if msg_box.clickedButton() == force_button:
+            if self.controller:
+                self.controller.cancel_command()
+            self.close()
+            
     def clear_output(self):
         self.output_area.clear()
+        self.output_text = ""
 
     def append_output(self, text):
         if text == "": 
             self.clear_output()
             return
             
+        self.output_text += text + "\n"
+        
         self.output_area.append(text)
         cursor = self.output_area.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -1114,12 +1219,27 @@ class ConsoleOutputDialog(QDialog):
         self.output_area.ensureCursorVisible()
 
     def command_finished(self, exit_code):
-        if exit_code == 0:
+        self.progress_bar.hide()
+        self.cancel_button.hide()
+    
+        self.exit_code = exit_code
+        
+        has_permission_error = self._detect_permission_error()
+        was_cancelled = "PROCESO CANCELADO" in self.output_text
+        command_successful = exit_code == 0 and not has_permission_error and not was_cancelled
+        
+        if command_successful:
             self.append_output(f"\n{self.tr('✅ Comando ejecutado con éxito')}")
+        elif was_cancelled:
+            self.append_output(f"\n{self.tr('🛑 Comando cancelado por el usuario.')}")
         else:
             self.append_output(f"\n{self.tr('❌ Comando terminado con código de error:')} {exit_code}")
+            
+            if has_permission_error:
+                self.append_output(f"\n{self.tr('🔒 Error de permisos: La operación fue cancelada o no se ingresó la contraseña correctamente.')}")
+                self.append_output(f"{self.tr('Intente de nuevo ingresando nuevamente la contraseña de super usuario.')}")
         
-        if self.requires_reboot:
+        if command_successful and self.requires_reboot:
             self.append_output(f"\n{self.tr('⚠️ Se requiere reinicio del sistema para aplicar los cambios')}")
             self.reboot_now_button.show()
             self.reboot_later_button.show()
@@ -1128,10 +1248,31 @@ class ConsoleOutputDialog(QDialog):
             self.close_button.show()
             self.reboot_now_button.hide()
             self.reboot_later_button.hide()
+
+        if command_successful:
+            if hasattr(self.main_window, '_update_ui_after_command'):
+                self.main_window._update_ui_after_command(self.current_command)
         
         if not self.isVisible():
             self.show()
             self.raise_()
+
+    def _detect_permission_error(self):
+        permission_errors = [
+            "Request dismissed",
+            "Authentication failed",
+            "Not authorized",
+            "Error executing command as another user",
+            "polkit-agent-helper-1: error",
+            "contraseña incorrecta",
+            "password incorrect"
+        ]
+        
+        output_lower = self.output_text.lower()
+        for error in permission_errors:
+            if error.lower() in output_lower:
+                return True
+        return False
 
     def reboot_system(self):
         self.append_output(f"\n{self.tr('🔄 Iniciando reinicio del sistema...')}")
@@ -1148,17 +1289,35 @@ class ImmutableController(QObject):
         self.process = None
         self.current_command = ""
 
+    def cancel_command(self):
+        if self.process and self.process.state() == QProcess.ProcessState.Running:
+            self.commandOutput.emit(f"\n{self.tr('--- PROCESO CANCELADO POR EL USUARIO ---')}\n")
+            
+            # --- INICIO DE LA MODIFICACIÓN ---
+            # Desconectar señales ANTES de matar el proceso para evitar el RuntimeError
+            try:
+                self.process.readyReadStandardOutput.disconnect(self.handle_stdout)
+                self.process.readyReadStandardError.disconnect(self.handle_stderr)
+                self.process.finished.disconnect(self.handle_finished)
+            except RuntimeError:
+                pass # Ignorar si ya estaban desconectadas
+            # --- FIN DE LA MODIFICACIÓN ---
+
+            self.process.kill()
+            self.process.waitForFinished(1000)
+            self.process = None # Marcar como nulo inmediatamente
+
     def execute_command(self, command, show_in_console=True, env=None):
         try:
             if show_in_console:
-                self.commandOutput.emit("")  
                 self.commandOutput.emit(f"$ {command}\n")
                 self.commandOutput.emit("="*80 + "\n")
 
             no_root_commands = [
                 "deepin-immutable-ctl --immutable-status",
                 "deepin-immutable-ctl snapshot list",
-                "deepin-immutable-ctl snapshot show"
+                "deepin-immutable-ctl snapshot show",
+                "deepin-immutable-writable status"
             ]
             
             needs_root = True
@@ -1198,6 +1357,8 @@ class ImmutableController(QObject):
                     process_env.insert(key, value)
                 self.process.setProcessEnvironment(process_env)
             
+            self.commandStarted.emit(full_command)
+            
             self.process.start("/bin/bash", ["-c", full_command])
             return ""
 
@@ -1208,14 +1369,23 @@ class ImmutableController(QObject):
             return error_msg
 
     def handle_stdout(self):
-        data = self.process.readAllStandardOutput()
-        stdout = bytes(data).decode("utf8")
-        self.commandOutput.emit(stdout.strip())
+        # --- INICIO DE LA MODIFICACIÓN ---
+        # Añadir comprobación para evitar el RuntimeError
+        if self.process:
+        # --- FIN DE LA MODIFICACIÓN ---
+            data = self.process.readAllStandardOutput()
+            stdout = bytes(data).decode("utf8")
+            self.commandOutput.emit(stdout.strip())
 
     def handle_stderr(self):
-        data = self.process.readAllStandardError()
-        stderr = bytes(data).decode("utf8")
-        self.commandOutput.emit(f"ERROR: {stderr.strip()}")
+        # --- INICIO DE LA MODIFICACIÓN ---
+        # Añadir comprobación para evitar el RuntimeError
+        if self.process:
+        # --- FIN DE LA MODIFICACIÓN ---
+            data = self.process.readAllStandardError()
+            stderr = bytes(data).decode("utf8")
+            if "terminated" not in stderr.lower() and "killed" not in stderr.lower():
+                self.commandOutput.emit(f"ERROR: {stderr.strip()}")
 
     def handle_finished(self, exit_code):
         self.commandOutput.emit("\n" + "="*80 + "\n")
@@ -1351,28 +1521,32 @@ class MainWindow(RoundedWindow):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
 
         self.snapshots_tab = None
+        self.status_tab = None 
 
         config = ConfigManager.load_config()
         self.dark_mode = config.get("dark_mode", True)
         
-        # Aplicar tema según la configuración
         if self.dark_mode:
             self.apply_theme(ThemeManager.dark_theme())
         else:
             self.apply_theme(ThemeManager.light_theme())
 
         self.console_dialog = ConsoleOutputDialog(self, title_text=self.tr("Salida de Comandos"), controller=self.controller)
-        self.controller.commandStarted.connect(lambda x: None)
+        
+        self.controller.commandStarted.connect(self.console_dialog.command_started)
         self.controller.commandOutput.connect(self.console_dialog.append_output)
         self.controller.commandFinished.connect(self.console_dialog.command_finished)
 
         self.create_ui()
-        self.check_immutable_status()
 
         self.status_timer = QTimer(self)
         self.status_timer.setInterval(10000)
-        self.status_timer.timeout.connect(self.check_immutable_status)
+        self.status_timer.timeout.connect(self.check_immutable_status_external) 
         self.status_timer.start()
+
+    def check_immutable_status_external(self):
+        if hasattr(self, 'status_tab') and self.status_tab is not None:
+            self.status_tab.check_immutable_status()
 
     def add_nav_item(self, text, icon_name):
         item = QListWidgetItem(self.tr(text))
@@ -1399,7 +1573,6 @@ class MainWindow(RoundedWindow):
         if dialog.exec() == QDialog.Accepted:
             new_language = dialog.selected_language()
             
-            # Guardar la preferencia de idioma
             config = ConfigManager.load_config()
             config["language"] = new_language
             ConfigManager.save_config(config)
@@ -1417,7 +1590,6 @@ class MainWindow(RoundedWindow):
         else:
             self.apply_theme(ThemeManager.light_theme())
         
-        # Guardar configuración
         config = ConfigManager.load_config()
         config["dark_mode"] = self.dark_mode
         ConfigManager.save_config(config)
@@ -1450,77 +1622,50 @@ class MainWindow(RoundedWindow):
                 }
             """)
 
-    def check_immutable_status(self):
-        output = self.controller.execute_command("deepin-immutable-ctl --immutable-status", show_in_console=False)
-        is_immutable = "true" in output.lower()
-
-        if is_immutable:
-            self.status_label.setText(self.tr("✔ Sistema en modo inmutable"))
-            self.status_label.setStyleSheet("color: #2ECC71;")
-            self.btn_disable_immutable.setEnabled(True)
-            self.btn_enable_immutable.setEnabled(False)
-        else:
-            self.status_label.setText(self.tr("✖ El sistema NO está en modo inmutable"))
-            self.status_label.setStyleSheet("color: #E74C3C;")
-            self.btn_disable_immutable.setEnabled(False)
-            self.btn_enable_immutable.setEnabled(True)
-
-    def disable_immutable_mode(self):
-        self.confirm_action(
-            self.tr("Confirmar Desactivación de Inmutabilidad"),
-            self.tr("¿Está seguro que desea desactivar el modo inmutable?\n\n"
-                   "Esto hará que el directorio '/usr' sea escribible, permitiendo modificaciones en el sistema base.\n"
-                   "Esta acción requiere un reinicio del sistema para aplicar los cambios.\n\n"
-                   "Esta acción requiere privilegios de root."),
-            "pkexec deepin-immutable-writable enable -d /usr -y",
-            show_console=True,
-            requires_reboot=True
-        )
-
-    def enable_immutable_mode(self):
-        self.confirm_action(
-            self.tr("Confirmar Activación de Inmutabilidad"),
-            self.tr("¿Está seguro que desea activar el modo inmutable de nuevo?\n\n"
-                   "Esto hará que el directorio '/usr' vuelva a ser de solo lectura, protegiendo el sistema base.\n"
-                   "Esta acción requiere un reinicio del sistema para aplicar los cambios.\n\n"
-                   "Esta acción requiere privilegios de root."),
-            "pkexec deepin-immutable-writable disable -y",
-            show_console=True,
-            requires_reboot=True
-        )
-
     def run_command(self, command, show_in_console=True):
         self.controller.execute_command(command, show_in_console=show_in_console)
 
+    # --- INICIO DE LA MODIFICACIÓN ---
     def confirm_action(self, title, message, command, show_console=True, requires_reboot=False):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
         
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setButtonText(QMessageBox.Yes, self.tr("Sí"))
-        msg_box.setButtonText(QMessageBox.No, self.tr("No"))
+        # Método moderno para evitar DeprecationWarning
+        yes_button = msg_box.addButton(self.tr("Sí"), QMessageBox.ButtonRole.YesRole)
+        no_button = msg_box.addButton(self.tr("No"), QMessageBox.ButtonRole.NoRole)
         
-        msg_box.setDefaultButton(QMessageBox.No)
+        msg_box.setDefaultButton(no_button)
         msg_box.setStyleSheet(QApplication.instance().styleSheet())
 
         reply = msg_box.exec()
 
-        if reply == QMessageBox.Yes:
+        # Comprobar qué botón se pulsó
+        if msg_box.clickedButton() == yes_button:
+    # --- FIN DE LA MODIFICACIÓN ---
             if show_console:
                 self.console_dialog.requires_reboot = requires_reboot
-                self.console_dialog.current_command = command
-                self.run_command(command, show_in_console=show_console)
+                self.console_dialog.show()
+                
+                QTimer.singleShot(50, lambda: self.run_command(command, show_in_console=show_console))
+            
             else:
                 output = self.controller.execute_command(command, show_in_console=False)
-                
-            if "snapshot" in command:
-                if hasattr(self, 'snapshots_tab') and self.snapshots_tab is not None:
-                    self.snapshots_tab.refresh_snapshots()
-            elif "immutable-status" not in command and ("deploy" in command or "rollback" in command):
-                self.check_immutable_status()
-            elif "immutable-writable" in command:
-                self.check_immutable_status()
+                self._update_ui_after_command(command)
+            
+    def _update_ui_after_command(self, command):
+        if not command:
+            return
+            
+        if "snapshot" in command:
+            if hasattr(self, 'snapshots_tab') and self.snapshots_tab is not None:
+                self.snapshots_tab.refresh_snapshots()
+        elif "immutable-status" not in command and ("deploy" in command or "rollback" in command):
+            if hasattr(self, 'status_tab') and self.status_tab is not None:
+                self.status_tab.check_immutable_status()
+        elif "immutable-writable" in command:
+            if hasattr(self, 'status_tab') and self.status_tab is not None:
+                self.status_tab.check_immutable_status()
 
     def create_ui(self):
         main_content_layout = QHBoxLayout(self.content_widget)
@@ -1541,10 +1686,10 @@ class MainWindow(RoundedWindow):
         self.content_stack = QStackedWidget()
         main_content_layout.addWidget(self.content_stack, 1)
 
-        self.create_status_page()
+        self.load_status_tab()  
         self.load_admin_tab()
         self.load_snapshots_tab()
-        self.create_about_page()
+        self.create_about_page() 
 
         self.nav_list.currentRowChanged.connect(self.content_stack.setCurrentIndex)
 
@@ -1580,6 +1725,10 @@ class MainWindow(RoundedWindow):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
+
+        about_group = QGroupBox(self.tr("Acerca de Immutable Deepin Tools"))
+        about_group_layout = QVBoxLayout(about_group)
+        about_group_layout.setSpacing(15)
 
         header_layout = QHBoxLayout()
         header_layout.setSpacing(15)
@@ -1625,13 +1774,16 @@ class MainWindow(RoundedWindow):
         header_layout.addWidget(title_container)
         header_layout.addStretch(1)
         
-        layout.addLayout(header_layout)
+        about_group_layout.addLayout(header_layout)
         
-        version = QLabel(self.tr("Versión: 1.0.4"))
+        version = QLabel(self.tr("Versión: 1.1.0"))
         version.setAlignment(Qt.AlignCenter)
-        layout.addWidget(version)
+        about_group_layout.addWidget(version)
         
-        layout.addWidget(self.create_separator())
+        about_group_layout.addWidget(self.create_separator())
+
+        developer_group = QGroupBox(self.tr("Información del Proyecto"))
+        developer_layout = QVBoxLayout(developer_group)
         
         link_style = "style='color:#2ECC71; text-decoration:none;'"
         hover_style = "onmouseover=\"this.style.color='#27AE60'; this.style.textDecoration='underline'\" " \
@@ -1645,7 +1797,7 @@ class MainWindow(RoundedWindow):
         developer = QLabel(developer_text)
         developer.setOpenExternalLinks(True)
         developer.setWordWrap(True)
-        layout.addWidget(developer)
+        developer_layout.addWidget(developer)
         
         beta_testers_text = self.tr("""
             <b>Beta Testers:</b><br>
@@ -1655,7 +1807,7 @@ class MainWindow(RoundedWindow):
         beta_testers = QLabel(beta_testers_text)
         beta_testers.setOpenExternalLinks(True)
         beta_testers.setWordWrap(True)
-        layout.addWidget(beta_testers)
+        developer_layout.addWidget(beta_testers)
 
         community_text = self.tr("""
             <b>Comunidad deepin en español:</b><br>
@@ -1665,7 +1817,7 @@ class MainWindow(RoundedWindow):
         community = QLabel(community_text)
         community.setOpenExternalLinks(True)
         community.setWordWrap(True)
-        layout.addWidget(community)
+        developer_layout.addWidget(community)
         
         repo_text = self.tr("""
             <b>Repositorio:</b><br>
@@ -1675,69 +1827,49 @@ class MainWindow(RoundedWindow):
         repo = QLabel(repo_text)
         repo.setOpenExternalLinks(True)
         repo.setWordWrap(True)
-        layout.addWidget(repo)
+        developer_layout.addWidget(repo)
         
+        license_text = self.tr("""
+            <b>Licencia:</b><br>
+            Este programa está bajo los términos de la Licencia Pública General de GNU (GPL) versión 3.
+        """)
+        
+        license_label = QLabel(license_text)
+        license_label.setWordWrap(True)
+        developer_layout.addWidget(license_label)
+
+        about_group_layout.addWidget(developer_group)
+        about_group_layout.addStretch(1)
+
+        layout.addWidget(about_group)
         layout.addStretch(1)
+        
         self.content_stack.addWidget(page)
 
-    def create_status_page(self):
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
-
-        status_group = QGroupBox(self.tr("Estado Actual del Sistema Inmutable"))
-        status_group_layout = QVBoxLayout(status_group)
-        self.status_label = QLabel(self.tr("Cargando estado..."))
-        self.status_label.setObjectName("status_label")
-        self.status_label.setAlignment(Qt.AlignCenter)
-        status_group_layout.addWidget(self.status_label)
-
-        btn_check_status = QPushButton(self.tr("Actualizar Estado"))
-        btn_check_status.clicked.connect(self.check_immutable_status)
-        status_group_layout.addWidget(btn_check_status, alignment=Qt.AlignCenter)
-
-        status_group_layout.addWidget(self.create_separator())
-
-        immutable_toggle_layout = QHBoxLayout()
-        self.btn_disable_immutable = QPushButton(self.tr("Desactivar Inmutabilidad"))
-        self.btn_disable_immutable.setStyleSheet("""
-            QPushButton { background-color: #E74C3C; color: white; }
-            QPushButton:hover { background-color: #C0392B; }
-            QPushButton:pressed { background-color: #A93226; }
-            QPushButton:disabled { background-color: #555555; color: #777777; }
-        """)
-        self.btn_disable_immutable.clicked.connect(self.disable_immutable_mode)
-        immutable_toggle_layout.addWidget(self.btn_disable_immutable)
-
-        self.btn_enable_immutable = QPushButton(self.tr("Activar Inmutabilidad"))
-        self.btn_enable_immutable.setStyleSheet("""
-            QPushButton { background-color: #2ECC71; color: white; }
-            QPushButton:hover { background-color: #27AE60; }
-            QPushButton:pressed { background-color: #1E8449; }
-            QPushButton:disabled { background-color: #555555; color: #777777; }
-        """)
-        self.btn_enable_immutable.clicked.connect(self.enable_immutable_mode)
-        immutable_toggle_layout.addWidget(self.btn_enable_immutable)
-
-        status_group_layout.addLayout(immutable_toggle_layout)
-
-        immutable_info_label = QLabel(self.tr(
-            "Al desactivar la inmutabilidad, el directorio `/usr` se vuelve escribible, permitiendo la instalación de software y modificaciones directas en el sistema base. "
-            "Esto es útil para desarrolladores o usuarios avanzados, pero reduce la seguridad y estabilidad del sistema inmutable."
-            "<br><br>"
-            "Al activar la inmutabilidad, `/usr` vuelve a ser de solo lectura, protegiendo el sistema base de cambios no deseados."
-        ))
-        immutable_info_label.setWordWrap(True)
-        status_group_layout.addWidget(immutable_info_label)
-
-        layout.addWidget(status_group)
-        layout.addStretch(1)
-
-        self.content_stack.addWidget(page)
+    def load_status_tab(self):
+        try:
+            status_path = os.path.join(self.current_dir, "resources", "status.py")
+            
+            if os.path.exists(status_path):
+                spec = importlib.util.spec_from_file_location("status", status_path)
+                status_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(status_module)
+                
+                status_tab = status_module.StatusTab(self.controller, self)
+                self.status_tab = status_tab 
+                self.content_stack.addWidget(status_tab)
+            else:
+                print(f"Advertencia: No se encontró el módulo status.py en {status_path}")
+                placeholder = QLabel(self.tr("Módulo de estado no encontrado"))
+                placeholder.setAlignment(Qt.AlignCenter)
+                self.content_stack.addWidget(placeholder)
+        except Exception as e:
+            print(f"Error al cargar el módulo de estado: {str(e)}")
+            error_widget = QLabel(self.tr(f"Error al cargar el estado:\n{str(e)}"))
+            error_widget.setAlignment(Qt.AlignCenter)
+            self.content_stack.addWidget(error_widget)
 
     def load_admin_tab(self):
-        """Carga dinámicamente la pestaña de administración desde el módulo externo"""
         try:
             admin_path = os.path.join(self.current_dir, "resources", "admin.py")
             
@@ -1769,7 +1901,7 @@ class MainWindow(RoundedWindow):
                 spec.loader.exec_module(snapshots_module)
                 
                 snapshots_tab = snapshots_module.SnapshotsTab(self.controller, self)
-                self.snapshots_tab = snapshots_tab  # Guarda la referencia
+                self.snapshots_tab = snapshots_tab 
                 self.content_stack.addWidget(snapshots_tab)
             else:
                 print(f"Advertencia: No se encontró el módulo snapshots.py en {snapshots_path}")
@@ -1793,10 +1925,19 @@ class MainWindow(RoundedWindow):
             separator.setStyleSheet("background-color: #DDDDDD; border: none;")
         return separator
 
+    # --- INICIO DE LA MODIFICACIÓN ---
+    # Añadir este método para manejar el cierre de la ventana
+    def closeEvent(self, event):
+        """Asegura que el proceso hijo se mate al cerrar la ventana."""
+        if self.controller.process and self.controller.process.state() == QProcess.ProcessState.Running:
+            print("Cerrando... Matando proceso en curso.")
+            self.controller.cancel_command()
+        event.accept()
+    # --- FIN DE LA MODIFICACIÓN ---
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
-    # Configurar idiomas
     current_language = setup_translator(app)
     
     window = MainWindow()
